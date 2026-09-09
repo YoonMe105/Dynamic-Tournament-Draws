@@ -241,7 +241,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     <?php else: ?>
 
-                        <strong><?= htmlspecialchars($player['player_passport']) ?></strong>
+                        <strong><?= !empty($player['player_passport']) ? htmlspecialchars($player['player_passport']) : '-' ?></strong>
 
                     <?php endif; ?>
 
@@ -276,9 +276,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </select>
 
                     <?php else: ?>
-
-                        <strong><?= htmlspecialchars($player['player_nationality']) ?></strong>
-
+                        <strong><?= !empty($player['player_nationality']) ? htmlspecialchars($player['player_nationality']) : '-' ?></strong>
                     <?php endif; ?>
 
                 </div>
@@ -293,20 +291,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <section class="details-panel profile-panel">
 
             <h2>Player Details</h2>
-
             <div class="profile-grid">
 
                 <div class="profile-field">
                     <span>ASF Membership No.</span>
 
                     <?php if ($edit_mode): ?>
-
                         <input class="profile-input" type="text" name="asf_member_no" value="<?= htmlspecialchars($player['asf_member_no'] ?? '') ?>">
-
                     <?php else: ?>
-
                         <strong><?= !empty($player['asf_member_no']) ? htmlspecialchars($player['asf_member_no']) : '-' ?></strong>
-
                     <?php endif; ?>
 
                 </div>
@@ -349,8 +342,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <input class="profile-input" type="text" name="ajss_ranking" value="<?= htmlspecialchars($player['ajss_ranking']) ?>">
 
                     <?php else: ?>
-
-                        <strong><?= htmlspecialchars($player['ajss_ranking']) ?></strong>
+                        <strong><?= !empty($player['ajss_ranking']) ? htmlspecialchars($player['ajss_ranking']) : '-' ?></strong>
 
                     <?php endif; ?>
 
@@ -361,11 +353,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     <?php if ($edit_mode): ?>
 
-                        <input class="profile-input" type="text" name="psa_ranking" value="<?= htmlspecialchars($player['psa_ranking']) ?>">
+                        <input class="profile-input" type="text" name="world_ranking" value="<?= htmlspecialchars($player['world_ranking']) ?>">
 
                     <?php else: ?>
 
-                        <strong><?= htmlspecialchars($player['psa_ranking']) ?></strong>
+                        <strong><?= !empty($player['world_ranking']) ? htmlspecialchars($player['world_ranking']) : '-' ?></strong>
 
                     <?php endif; ?>
 
@@ -497,5 +489,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         });
     </script>
+    
 </body>
 </html>

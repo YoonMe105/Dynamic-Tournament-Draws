@@ -25,7 +25,7 @@ if (!$player_result) {
 
     <?php require_once 'admin_navbar.php'; ?>
 
-    <main class="players-page">
+    <main class="">
 
         <div class="players-heading">
             <h1>Players</h1>
@@ -73,7 +73,7 @@ if (!$player_result) {
 
                 <?php while ($player = $player_result->fetch_assoc()): ?>
 
-                    <article class="player-row" data-search="<?= strtolower($player['playerID'] . ' ' . $player['player_full_name'] . ' ' . $player['player_email']) ?>" data-event="<?= strtolower($player['trainingID']) ?>" data-status="<?= strtolower($player['player_active']) ?>">
+                    <article class="player-row" data-search="<?= strtolower($player['playerID'] . ' ' . $player['player_full_name'] . ' ' . $player['player_email']) ?>" data-status="<?= strtolower($player['player_active']) ?>">
 
                         <strong class="player-code">
                             <?= htmlspecialchars($player['playerID']) ?>
