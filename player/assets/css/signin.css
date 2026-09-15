@@ -1,0 +1,158 @@
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: Arial, Helvetica, sans-serif;
+    background: linear-gradient(135deg, #993D86, #6d2861);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 30px 15px;
+}
+
+.signin-container {
+    width: 100%;
+    max-width: 500px;
+}
+
+.signin-card {
+    background: #ffffff;
+    padding: 35px;
+    border-radius: 15px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.signin-card h2 {
+    text-align: center;
+    color: #333;
+    font-size: 30px;
+    margin-bottom: 8px;
+}
+
+.subtitle {
+    text-align: center;
+    color: #777;
+    margin-bottom: 30px;
+    font-size: 14px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 7px;
+    color: #333;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.form-group input,
+.form-group select {
+    width: 100%;
+    height: 45px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 0 14px;
+    font-size: 14px;
+    color: #333;
+    outline: none;
+    transition: 0.2s;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+    border-color: #993D86;
+    box-shadow: 0 0 0 3px rgba(153, 61, 134, 0.1);
+}
+
+.password-wrapper {
+    position: relative;
+    width: 100%;
+}
+
+.password-wrapper input {
+    padding-right: 50px;
+}
+
+.eye-btn {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 18px;
+    width: 35px;
+    height: 35px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #666;
+}
+
+.eye-btn:hover {
+    color: #993D86;
+}
+
+#passwordMessage {
+    display: block;
+    margin-top: 6px;
+    font-size: 12px;
+}
+
+.signin-btn {
+    width: 100%;
+    height: 48px;
+    border: none;
+    border-radius: 8px;
+    background: #993D86;
+    color: white;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.signin-btn:hover {
+    background: #7d306e;
+}
+
+.signin-btn:active {
+    transform: scale(0.98);
+}
+
+.message {
+    padding: 12px 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    font-size: 14px;
+}
+
+.message.success {
+    background: #e8f7ee;
+    color: #217a43;
+    border: 1px solid #b7e4c7;
+}
+
+.message.error {
+    background: #fdecec;
+    color: #b42318;
+    border: 1px solid #f5c2c0;
+}
+
+@media (max-width: 600px) {
+    .signin-card {
+        padding: 25px 20px;
+    }
+
+    .signin-card h2 {
+        font-size: 26px;
+    }
+}

@@ -1,0 +1,421 @@
+/* =========================================================
+   GENERAL
+========================================================= */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: Arial, Helvetica, sans-serif;
+    background: #f5f7fb;
+    color: #222;
+    line-height: 1.6;
+}
+
+a {
+    text-decoration: none;
+}
+
+
+/* =========================================================
+   MAIN CONTAINER
+========================================================= */
+
+.container {
+    width: 90%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 40px 0 60px;
+}
+
+
+/* =========================================================
+   SECTION
+========================================================= */
+
+.tournament-section {
+    margin-bottom: 60px;
+}
+
+.section-title {
+    margin-bottom: 25px;
+}
+
+.section-title h2 {
+    font-size: 30px;
+    font-weight: 700;
+    color: #1f2937;
+    margin-bottom: 6px;
+}
+
+.section-title p {
+    color: #6b7280;
+    font-size: 15px;
+}
+
+
+/* =========================================================
+   TOURNAMENT GRID
+========================================================= */
+
+.tournament-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+    gap: 25px;
+}
+
+
+/* =========================================================
+   TOURNAMENT CARD
+========================================================= */
+
+.tournament-card {
+    background: #ffffff;
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+
+    display: flex;
+    flex-direction: column;
+
+    transition:
+        transform 0.25s ease,
+        box-shadow 0.25s ease;
+}
+
+.tournament-card:hover,
+.tournament-card.card-hover {
+    transform: translateY(-5px);
+
+    box-shadow:
+        0 12px 25px rgba(0, 0, 0, 0.12);
+}
+
+
+/* =========================================================
+   TOURNAMENT IMAGE
+========================================================= */
+
+.tournament-image {
+    width: 100%;
+    height: 220px;
+    background: #e9edf3;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    overflow: hidden;
+}
+
+.tournament-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.no-image {
+    font-size: 65px;
+    opacity: 0.8;
+}
+
+
+/* =========================================================
+   TOURNAMENT CONTENT
+========================================================= */
+
+.tournament-content {
+    padding: 25px;
+
+    display: flex;
+    flex-direction: column;
+
+    flex: 1;
+}
+
+.tournament-type {
+    display: inline-block;
+
+    width: fit-content;
+
+    padding: 5px 12px;
+
+    margin-bottom: 12px;
+
+    background: #eef2ff;
+    color: #4f46e5;
+
+    border-radius: 20px;
+
+    font-size: 12px;
+    font-weight: 700;
+
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.past-label {
+    display: inline-block;
+
+    width: fit-content;
+
+    padding: 5px 12px;
+
+    margin-bottom: 12px;
+
+    background: #f1f5f9;
+    color: #64748b;
+
+    border-radius: 20px;
+
+    font-size: 12px;
+    font-weight: 700;
+
+    text-transform: uppercase;
+}
+
+
+/* =========================================================
+   TOURNAMENT TITLE
+========================================================= */
+
+.tournament-content h2 {
+    font-size: 22px;
+    line-height: 1.35;
+
+    color: #111827;
+
+    margin-bottom: 12px;
+}
+
+
+/* =========================================================
+   DESCRIPTION
+========================================================= */
+
+.description {
+    color: #6b7280;
+
+    font-size: 14px;
+
+    margin-bottom: 20px;
+
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+
+    overflow: hidden;
+}
+
+
+/* =========================================================
+   TOURNAMENT INFO
+========================================================= */
+
+.tournament-info {
+    margin-top: auto;
+    margin-bottom: 20px;
+}
+
+.info-row {
+    display: flex;
+    align-items: flex-start;
+
+    gap: 8px;
+
+    margin-bottom: 10px;
+
+    font-size: 14px;
+}
+
+.info-icon {
+    width: 25px;
+    flex-shrink: 0;
+}
+
+.info-label {
+    font-weight: 600;
+    color: #374151;
+    min-width: 75px;
+}
+
+.info-value {
+    color: #6b7280;
+    flex: 1;
+}
+
+
+
+.tournament-actions {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: nowrap;
+}
+
+.tournament-actions .view-btn {
+    width: auto;
+}
+
+
+.view-btn {
+    display: inline-flex;
+
+    align-items: center;
+    justify-content: center;
+
+    gap: 8px;
+
+    padding: 11px 18px;
+
+    background: #2563eb;
+    color: #ffffff;
+
+    border-radius: 8px;
+
+    font-size: 14px;
+    font-weight: 600;
+
+    transition:
+        background 0.2s ease,
+        transform 0.2s ease;
+}
+
+.view-btn:hover {
+    background: #1d4ed8;
+    transform: translateY(-1px);
+}
+
+.view-btn:active {
+    transform: translateY(0);
+}
+
+
+/* =========================================================
+   MAKE DRAW BUTTON
+========================================================= */
+
+.tournament-actions .view-btn:last-child {
+    background: #16a34a;
+}
+
+.tournament-actions .view-btn:last-child:hover {
+    background: #15803d;
+}
+
+
+/* =========================================================
+   LOADING
+========================================================= */
+
+.view-btn.loading {
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+
+/* =========================================================
+   EMPTY MESSAGE
+========================================================= */
+
+.empty-message {
+    background: #ffffff;
+
+    border: 1px dashed #d1d5db;
+
+    border-radius: 12px;
+
+    padding: 35px;
+
+    text-align: center;
+
+    color: #6b7280;
+
+    font-size: 15px;
+}
+
+
+/* =========================================================
+   PAST TOURNAMENT
+========================================================= */
+
+.past-section {
+    margin-top: 20px;
+}
+
+.past-card {
+    opacity: 0.9;
+}
+
+.past-card .tournament-image {
+    filter: grayscale(20%);
+}
+
+
+/* =========================================================
+   RESPONSIVE - TABLET
+========================================================= */
+
+@media (max-width: 768px) {
+
+    .container {
+        width: 94%;
+        padding-top: 30px;
+    }
+
+    .section-title h2 {
+        font-size: 26px;
+    }
+
+    .tournament-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .tournament-image {
+        height: 200px;
+    }
+
+}
+
+
+/* =========================================================
+   RESPONSIVE - MOBILE
+========================================================= */
+
+@media (max-width: 480px) {
+
+    .container {
+        width: 92%;
+        padding-top: 25px;
+    }
+
+    .section-title h2 {
+        font-size: 23px;
+    }
+
+    .section-title p {
+        font-size: 14px;
+    }
+
+    .tournament-content {
+        padding: 20px;
+    }
+
+    .tournament-content h2 {
+        font-size: 19px;
+    }
+
+    .tournament-image {
+        height: 180px;
+    }
+
+    .info-row {
+        font-size: 13px;
+    }
+
+}

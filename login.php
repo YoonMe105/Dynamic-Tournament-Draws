@@ -60,7 +60,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         ==========================================
         */
 
-        $player_query = "SELECT playerid, firstname, lastname, password
+        $player_query = "SELECT playerid, player_first_name, player_last_name, player_password
                          FROM players
                          WHERE playerid = ?";
 
@@ -79,13 +79,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
             $player = $player_result->fetch_assoc();
 
-            if ($password === $player["password"]) {
+            if ($password === $player["player_password"]) {
 
                 $_SESSION["userid"] = $player["playerid"];
                 $_SESSION["role"] = "player";
                 $_SESSION["playerid"] = $player["playerid"];
-                $_SESSION["firstname"] = $player["firstname"];
-                $_SESSION["lastname"] = $player["lastname"];
+                $_SESSION["firstname"] = $player["player_first_name"];
+                $_SESSION["lastname"] = $player["player_last_name"];
 
                 $redirect_url = "player/player_index.php";
                 $login_success = true;

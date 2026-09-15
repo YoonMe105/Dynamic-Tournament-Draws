@@ -3,152 +3,645 @@ session_start();
 
 require '../db.php';
 
+
+/*
+|--------------------------------------------------------------------------
+| Admin Session Check
+|--------------------------------------------------------------------------
+*/
+
+if (!isset($_SESSION["userid"]) || $_SESSION["role"] !== "admin") {
+    header("Location: ../login.php");
+    exit;
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| Get Tournament ID
+|--------------------------------------------------------------------------
+*/
+
+$tournamentID = isset($_GET['id']) ? intval($_GET['id']) : 0;
+
+if ($tournamentID <= 0) {
+    die("Invalid tournament ID.");
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| Registration Options
+|--------------------------------------------------------------------------
+*/
+
+$registration_options = [
+    'player_full_name' => 'Full Name',
+    'player_first_name' => 'First Name',
+    'player_last_name' => 'Last Name',
+    'player_national_id' => 'National ID',
+    'player_passport' => 'Passport',
+    'player_date_of_birth' => 'Date of Birth',
+    'player_gender' => 'Gender',
+    'player_nationality' => 'Nationality',
+    'player_contact_number' => 'Contact Number',
+    'player_national_ranking' => 'National Ranking',
+    'player_ajss_ranking' => 'AJSS Ranking',
+    'player_psa_world_ranking' => '(PSA) World Ranking',
+    'player_email' => 'Email',
+    'player_category' => 'Category Registered',
+    'player_chinese_name' => 'Chinese Name',
+    'player_tshirt_size' => 'T-Shirt Size',
+    'player_accommodation_transportation' => 'Team Accommodation / Transportation',
+    'player_latest_results' => 'Latest Results',
+    'player_other_attachments' => 'Other Attachments',
+    'admin_remarks' => 'Admin Remarks or Notes',
+    'player_asf_membership_no' => 'ASF Membership No',
+    'player_wsf_spin_no' => 'WSF Spin No'
+];
+
+
+/*
+|--------------------------------------------------------------------------
+| Get Tournament
+|--------------------------------------------------------------------------
+*/
+
+$sql = "SELECT *
+        FROM tournament
+        WHERE tournamentID = ?";
+
+$stmt = $conn->prepare($sql);
+
+if (!$stmt) {
+    die("Database error: " . $conn->error);
+}
+
+$stmt->bind_param("i", $tournamentID);
+$stmt->execute();
+
+$result = $stmt->get_result();
+
+if ($result->num_rows === 0) {
+    die("Tournament not found.");
+}
+
+$tournament = $result->fetch_assoc();
+
+$stmt->close();
+
+
+/*
+|--------------------------------------------------------------------------
+| Get Tournament Categories
+|--------------------------------------------------------------------------
+*/
+
+$categories = [];
+
+$categorySQL = "SELECT categoryID, category_name, age, gender
+                FROM tournament_category
+                WHERE tournamentID = ?
+                ORDER BY age DESC, gender ASC";
+
+$categoryStmt = $conn->prepare($categorySQL);
+
+if ($categoryStmt) {
+
+    $categoryStmt->bind_param("i", $tournamentID);
+    $categoryStmt->execute();
+
+    $categoryResult = $categoryStmt->get_result();
+
+    while ($row = $categoryResult->fetch_assoc()) {
+        $categories[] = $row;
+    }
+
+    $categoryStmt->close();
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| Get Selected Registration Fields
+|--------------------------------------------------------------------------
+*/
+
+$selected_registration_fields = [];
+
+if (!empty($tournament['registration_field'])) {
+
+    $selected_registration_fields = explode(
+        ';',
+        $tournament['registration_field']
+    );
+
+    $selected_registration_fields = array_map(
+        'trim',
+        $selected_registration_fields
+    );
+}
+
 ?>
 
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
+
     <meta charset="UTF-8">
+
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tournament Details | T_Software</title>
-    <link href="./assets/style.css" rel="stylesheet" type="text/css">
+
+    <title>
+        View Tournament
+    </title>
+
+    <link rel="stylesheet" href="./assets/style.css">
+    <link rel="stylesheet" href="./assets/view_tournament.css">
+
+
 </head>
+
+
 <body>
-    <?php require_once 'admin_navbar.php'; ?>
 
-    <main>
-        <?php if ($tournament): ?>
-            <div class="details-topbar">
-                <div>
-                    <p class="section-kicker">Tournament profile</p>
-                    <h1><?= detail_value($tournament['tournament_name']) ?></h1>
-                </div>
+
+<?php require_once 'admin_navbar.php'; ?>
+
+
+<main class="container">
+
+
+    <!-- Page Title -->
+
+    <div class="page-title">
+
+        <div>
+            <h1>View Tournament</h1>
+
+            <p>
+                View tournament information
+            </p>
+        </div>
+
+        <a href="admin_view_tournaments.php" class="back-btn">
+            ← Back
+        </a>
+
+    </div>
+
+
+    <!-- Main Form Card -->
+
+    <div class="form-card">
+
+
+        <!-- Tournament Name -->
+
+        <div class="form-group">
+
+            <label>
+                Tournament Name
+            </label>
+
+            <div class="view-input">
+
+                <?= htmlspecialchars(
+                    $tournament['tournament_name']
+                ) ?>
+
             </div>
 
-            <?php if (isset($_GET['updated'])): ?>
-                <div class="update-message">Tournament updated successfully.</div>
-            <?php endif; ?>
+        </div>
 
-            <?php if ($edit_mode): ?>
-                <form id="tournament-form" method="post" action="admin_view_tournaments.php?id=<?= (int) $tournament['tournamentid'] ?>&edit=1">
-                    <input type="hidden" name="tournament_id" value="<?= (int) $tournament['tournamentid'] ?>">
-            <?php endif; ?>
 
-            <section class="details-image-panel">
-                <div class="tournament-logo-placeholder">
-                    <span>T</span>
-                    <small>T_Software</small>
-                </div>
-                <label class="image-upload">
-                    Choose File
-                    <input type="file" accept="image/*">
+        <!-- Start and End Date -->
+
+        <div class="form-row">
+
+
+            <div class="form-group">
+
+                <label>
+                    Start Date & Time
                 </label>
-            </section>
 
-            <section class="details-panel">
-                <h2>Tournament Details</h2>
-                <div class="details-grid">
-                    <div class="detail-item"><span>Tournament ID</span><strong><?= (int) $tournament['tournamentid'] ?></strong></div>
-                    <div class="detail-item detail-wide"><span>Tournament Name</span>
-                        <?php if ($edit_mode): ?>
-                            <input class="detail-input" name="tournament_name" value="<?= htmlspecialchars($tournament['tournament_name']) ?>" required>
-                        <?php else: ?>
-                            <strong><?= detail_value($tournament['tournament_name']) ?></strong>
-                        <?php endif; ?>
-                    </div>
-                    <div class="detail-item detail-full"><span>Description</span><?php editable_field($tournament, 'description', 'textarea', $edit_mode); ?></div>
-                    <div class="detail-item"><span>Tournament StartDate</span>
-                        <?php if ($edit_mode): ?>
-                            <input class="detail-input" type="datetime-local" name="tournament_startdate" value="<?= date('Y-m-d\TH:i', strtotime($tournament['tournament_startdate'])) ?>" required>
-                        <?php else: ?>
-                            <strong><?= detail_date($tournament['tournament_startdate'], 'd/m/Y h:i A') ?></strong>
-                        <?php endif; ?>
-                    </div>
-                    <div class="detail-item"><span>Tournament EndDate</span>
-                        <?php if ($edit_mode): ?>
-                            <input class="detail-input" type="datetime-local" name="tournament_enddate" value="<?= date('Y-m-d\TH:i', strtotime($tournament['tournament_enddate'])) ?>" required>
-                        <?php else: ?>
-                            <strong><?= detail_date($tournament['tournament_enddate'], 'd/m/Y h:i A') ?></strong>
-                        <?php endif; ?>
-                    </div>
-                    <div class="detail-item"><span>Registration Deadline</span><?php editable_field($tournament, 'registration_deadline', 'datetime-local', $edit_mode); ?></div>
-                    <div class="detail-item"><span>Age Cut Off Date</span><?php editable_field($tournament, 'age_cut_off_date', 'date', $edit_mode); ?></div>
-                    <div class="detail-item"><span>Tournament Type</span>
-                        <?php if ($edit_mode): ?>
-                            <input class="detail-input" name="tournament_type" value="<?= htmlspecialchars($tournament['tournament_type']) ?>" required>
-                        <?php else: ?>
-                            <strong><?= detail_value($tournament['tournament_type']) ?></strong>
-                        <?php endif; ?>
-                    </div>
-                    <div class="detail-item"><span>Tournament Location</span><?php editable_field($tournament, 'tournament_location', 'text', $edit_mode); ?></div>
-                    <div class="detail-item detail-full"><span>Tournament Fee</span><?php editable_field($tournament, 'tournament_fee', 'text', $edit_mode); ?></div>
-                    <div class="detail-item detail-wide"><span>Detail Link</span><?php editable_field($tournament, 'detail_link', 'url', $edit_mode); ?></div>
-                    <div class="detail-item"><span>T-Shirt Size Option</span><?php editable_field($tournament, 'tshirt_size_option', 'text', $edit_mode); ?></div>
-                </div>
-            </section>
+                <div class="view-input">
 
-            <section class="details-panel">
-                <h2>Categories</h2>
-                <div class="check-grid">
-                    <?php foreach (['Boys Under 19 Open Championship', 'Girls Under 19 Open Championship', 'Boys Under 17 Open Championship', 'Girls Under 17 Open Championship', 'Boys Under 15 Open Championship', 'Girls Under 15 Open Championship', 'Boys Under 13 Open Championship', 'Girls Under 13 Open Championship', 'Boys Under 11 Open Championship', 'Girls Under 11 Open Championship', 'Boys Under 09 Open Championship', 'Girls Under 09 Open Championship'] as $category): ?>
-                        <label><input type="checkbox" name="categories[]" value="<?= htmlspecialchars($category) ?>" <?= $edit_mode ? '' : 'disabled' ?>> <?= htmlspecialchars($category) ?></label>
-                    <?php endforeach; ?>
-                </div>
-            </section>
+                    <?= date(
+                        'd M Y, h:i A',
+                        strtotime(
+                            $tournament['tournament_startdate']
+                        )
+                    ) ?>
 
-            <section class="details-panel">
-                <h2>Registration Details Needed</h2>
-                <div class="check-grid">
-                    <?php $selected_registration_fields = registration_fields_from_value($tournament['registration_field'] ?? ''); ?>
-                    <?php $registration_options = [
-                        'player_full_name' => 'Full Name',
-                        'player_first_name' => 'First Name',
-                        'player_last_name' => 'Last Name',
-                        'player_ic' => 'National ID',
-                        'player_passport' => 'Passport',
-                        'player_dob' => 'Date of Birth',
-                        'player_gender' => 'Gender',
-                        'player_nationality' => 'Nationality',
-                        'player_contact' => 'Contact Number',
-                        'national_ranking' => 'National Ranking',
-                        'ajss_ranking' => 'AJSS Ranking',
-                        'psa_world_ranking' => '(PSA) World Ranking',
-                        'player_email' => 'Email',
-                        'category_registered' => 'Category Registered',
-                        'player_chinese_name' => 'Chinese Name',
-                        'player_tshirt' => 'T-Shirt Size',
-                        'team_accommodation_transportation' => 'Team Accommodation / Transportation',
-                        'player_latest_results' => 'Latest Results',
-                        'player_attachments' => 'Other Attachments',
-                        'admin_remarks_notes' => 'Admin remarks or notes',
-                        'player_asf_membership_no' => 'ASF Membership No',
-                        'player_wsf_spin_no' => 'WSF Spin No'
-                    ]; ?>
-                    <?php foreach ($registration_options as $field => $label): ?>
-                        <label><input type="checkbox" name="registration_fields[]" value="<?= htmlspecialchars($field) ?>" <?= in_array($field, $selected_registration_fields, true) ? 'checked' : '' ?> <?= $edit_mode ? '' : 'disabled' ?>> <?= htmlspecialchars($label) ?></label>
-                    <?php endforeach; ?>
                 </div>
-            </section>
 
-            <?php if ($edit_mode): ?>
-                <div class="details-bottom-actions">
-                    <a class="details-btn" href="admin_view_tournaments.php?id=<?= (int) $tournament['tournamentid'] ?>">Back</a>
-                    <button class="details-btn update-btn" type="submit" form="tournament-form">Update</button>
-                </div>
-                </form>
-            <?php else: ?>
-                <div class="details-bottom-actions">
-                    <a class="details-btn" href="admin_index.php">Back</a>
-                    <a class="details-btn update-btn" href="admin_view_tournaments.php?id=<?= (int) $tournament['tournamentid'] ?>&edit=1">Update</a>
-                </div>
-            <?php endif; ?>
-        <?php else: ?>
-            <div class="dashboard-header">
-                <h1>Tournament not found</h1>
-                <p>Please select a valid tournament from the dashboard.</p>
             </div>
-            <a class="details-btn" href="admin_index.php">Back to Dashboard</a>
+
+
+            <div class="form-group">
+
+                <label>
+                    End Date & Time
+                </label>
+
+                <div class="view-input">
+
+                    <?= date(
+                        'd M Y, h:i A',
+                        strtotime(
+                            $tournament['tournament_enddate']
+                        )
+                    ) ?>
+
+                </div>
+
+            </div>
+
+
+        </div>
+
+
+        <!-- Registration Deadline -->
+
+        <div class="form-group">
+
+            <label>
+                Registration Deadline
+            </label>
+
+            <div class="view-input">
+
+                <?= date(
+                    'd M Y, h:i A',
+                    strtotime(
+                        $tournament['tournament_deadline']
+                    )
+                ) ?>
+
+            </div>
+
+        </div>
+
+
+        <!-- Description -->
+
+        <div class="form-group">
+
+            <label>
+                Tournament Description
+            </label>
+
+            <div class="view-textarea">
+
+                <?= nl2br(
+                    htmlspecialchars(
+                        $tournament['tournament_description']
+                    )
+                ) ?>
+
+            </div>
+
+        </div>
+
+
+        <!-- Location -->
+
+        <div class="form-group">
+
+            <label>
+                Location
+            </label>
+
+            <div class="view-input">
+
+                <?= htmlspecialchars(
+                    $tournament['tournament_location']
+                ) ?>
+
+            </div>
+
+        </div>
+
+
+        <!-- Fee and Type -->
+
+        <div class="form-row">
+
+
+            <div class="form-group">
+
+                <label>
+                    Tournament Fee
+                </label>
+
+                <div class="view-input">
+
+                    <?= htmlspecialchars(
+                        $tournament['tournament_fee']
+                    ) ?>
+
+                </div>
+
+            </div>
+
+
+            <div class="form-group">
+
+                <label>
+                    Tournament Type
+                </label>
+
+                <div class="view-input">
+
+                    <?= htmlspecialchars(
+                        $tournament['tournament_type']
+                    ) ?>
+
+                </div>
+
+            </div>
+
+
+        </div>
+
+
+        <!-- Age Cutoff -->
+
+        <div class="form-group">
+
+            <label>
+                Age Cutoff Date
+            </label>
+
+            <div class="view-input">
+
+                <?php if (!empty($tournament['tournament_age_cutoff'])): ?>
+
+                    <?= date(
+                        'd M Y',
+                        strtotime(
+                            $tournament['tournament_age_cutoff']
+                        )
+                    ) ?>
+
+                <?php else: ?>
+
+                    Not specified
+
+                <?php endif; ?>
+
+            </div>
+
+        </div>
+
+
+        <!-- T-Shirt -->
+
+        <div class="form-group">
+
+            <label>
+                T-Shirt Size Information
+            </label>
+
+            <div class="view-input">
+
+                <?php if (!empty($tournament['tournament_tshirt_size'])): ?>
+
+                    <?= htmlspecialchars(
+                        $tournament['tournament_tshirt_size']
+                    ) ?>
+
+                <?php else: ?>
+
+                    Not specified
+
+                <?php endif; ?>
+
+            </div>
+
+        </div>
+
+
+        <!-- Detail Link -->
+
+        <div class="form-group">
+
+            <label>
+                Tournament Detail Link
+            </label>
+
+            <div class="view-input">
+
+                <?php if (!empty($tournament['tournament_detail_link'])): ?>
+
+                    <a
+                        href="<?= htmlspecialchars($tournament['tournament_detail_link']) ?>"
+                        target="_blank"
+                    >
+                        <?= htmlspecialchars($tournament['tournament_detail_link']) ?>
+                    </a>
+
+                <?php else: ?>
+
+                    Not specified
+
+                <?php endif; ?>
+
+            </div>
+
+        </div>
+
+
+        <!-- Tournament Picture -->
+
+        <?php if (!empty($tournament['tournament_picture'])): ?>
+
+            <div class="form-group">
+
+                <label>
+                    Tournament Picture
+                </label>
+
+                <div class="picture-box">
+
+                    <img
+                        src="../uploads/tournaments/<?= htmlspecialchars($tournament['tournament_picture']) ?>"
+                        alt="Tournament Picture"
+                    >
+
+                </div>
+
+            </div>
+
         <?php endif; ?>
-    </main>
+
+
+    </div>
+
+
+    <!-- Tournament Categories -->
+
+    <div class="form-card">
+
+
+        <div class="section-title">
+
+            <h2>
+                Tournament Categories
+            </h2>
+
+        </div>
+
+
+        <div class="checkbox-grid">
+
+
+            <?php if (!empty($categories)): ?>
+
+
+                <?php foreach ($categories as $category): ?>
+
+
+                    <label class="checkbox-item selected">
+
+                        <input
+                            type="checkbox"
+                            checked
+                            disabled
+                        >
+
+                        <span class="custom-checkbox">
+                            ✓
+                        </span>
+
+                        <span class="checkbox-label">
+
+                            <?= htmlspecialchars(
+                                $category['category_name']
+                            ) ?>
+
+                        </span>
+
+                    </label>
+
+
+                <?php endforeach; ?>
+
+
+            <?php else: ?>
+
+
+                <div class="empty-message">
+
+                    No categories selected.
+
+                </div>
+
+
+            <?php endif; ?>
+
+
+        </div>
+
+
+    </div>
+
+
+    <!-- Registration Fields -->
+
+    <div class="form-card">
+
+
+        <div class="section-title">
+
+            <h2>
+                Registration Fields
+            </h2>
+
+        </div>
+
+
+        <div class="checkbox-grid">
+
+
+            <?php foreach ($registration_options as $field_name => $field_label): ?>
+
+
+                <?php
+
+                $is_selected = in_array(
+                    $field_name,
+                    $selected_registration_fields
+                );
+
+                ?>
+
+
+                <label class="checkbox-item <?= $is_selected ? 'selected' : '' ?>">
+
+
+                    <input
+                        type="checkbox"
+                        disabled
+                        <?= $is_selected ? 'checked' : '' ?>
+                    >
+
+
+                    <span class="custom-checkbox">
+
+                        <?= $is_selected ? '✓' : '' ?>
+
+                    </span>
+
+
+                    <span class="checkbox-label">
+
+                        <?= htmlspecialchars(
+                            $field_label
+                        ) ?>
+
+                    </span>
+
+
+                </label>
+
+
+            <?php endforeach; ?>
+
+
+        </div>
+
+
+    </div>
+
+
+    <!-- Buttons -->
+
+    <div class="action-buttons">
+
+        <a
+            href="admin_view_tournaments.php"
+            class="secondary-btn"
+        >
+            Back
+        </a>
+
+        <a
+            href="edit_tournament.php?id=<?= (int)$tournament['tournamentID'] ?>"
+            class="primary-btn"
+        >
+            Edit Tournament
+        </a>
+
+    </div>
+
+
+</main>
+
+
 </body>
+
 </html>

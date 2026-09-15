@@ -1,0 +1,287 @@
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: Arial, Helvetica, sans-serif;
+    background: #f5f7fa;
+    color: #333;
+}
+
+.page-container {
+    width: 92%;
+    max-width: 1200px;
+    margin: 35px auto 60px;
+}
+
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 25px;
+}
+
+.page-header h1 {
+    margin: 0 0 8px;
+    font-size: 30px;
+    color: #20283a;
+}
+
+.page-header p {
+    margin: 0;
+    color: #6b7280;
+    font-size: 15px;
+}
+
+
+/* =========================
+   FORM SECTION
+========================= */
+
+.form-section {
+    background: #ffffff;
+    border: 1px solid #dfe3e8;
+    border-radius: 14px;
+    padding: 25px;
+    margin-bottom: 25px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.form-section h2 {
+    margin: 0 0 8px;
+    font-size: 20px;
+    color: #20283a;
+}
+
+.section-description {
+    margin: 0 0 22px;
+    color: #6b7280;
+    font-size: 14px;
+}
+
+
+/* =========================
+   VIEW INFORMATION
+========================= */
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group:last-child {
+    margin-bottom: 0;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 22px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    color: #374151;
+}
+
+
+/* Normal text instead of input box */
+
+.view-value {
+    min-height: 24px;
+    padding: 2px 0;
+    color: #3f4652;
+    font-size: 15px;
+    line-height: 1.6;
+    word-break: break-word;
+}
+
+.view-description {
+    min-height: 80px;
+    color: #3f4652;
+    font-size: 15px;
+    line-height: 1.7;
+    white-space: normal;
+}
+
+.view-value a {
+    color: #993D86;
+    text-decoration: none;
+}
+
+.view-value a:hover {
+    text-decoration: underline;
+}
+
+
+/* =========================
+   TOURNAMENT PICTURE
+========================= */
+
+.tournament-picture {
+    margin-top: 5px;
+}
+
+.tournament-picture img {
+    display: block;
+    max-width: 400px;
+    max-height: 250px;
+    border-radius: 8px;
+    object-fit: cover;
+    border: 1px solid #dfe3e8;
+}
+
+
+/* =========================
+   CHECKBOX GRID
+========================= */
+
+.checkbox-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 80px;
+    row-gap: 18px;
+}
+
+.checkbox-item {
+    display: flex !important;
+    align-items: center;
+    gap: 12px;
+    min-height: 25px;
+    font-size: 17px;
+    font-weight: 400 !important;
+    color: #3f4652 !important;
+}
+
+.checkbox-item input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    flex-shrink: 0;
+    accent-color: #993D86;
+}
+
+.checkbox-item input[type="checkbox"]:disabled {
+    opacity: 1;
+    cursor: default;
+}
+
+.checkbox-item span {
+    color: #3f4652;
+}
+
+.checkbox-item.unselected {
+    color: #777;
+}
+
+.checkbox-item.unselected span {
+    color: #777;
+}
+
+
+/* =========================
+   BUTTONS
+========================= */
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 12px;
+    margin-top: 10px;
+}
+
+.cancel-btn,
+.update-btn {
+    min-width: 130px;
+    padding: 12px 22px;
+    border-radius: 7px;
+    font-size: 15px;
+    font-weight: 600;
+    text-align: center;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.cancel-btn {
+    border: 1px solid #d1d5db;
+    background: #ffffff;
+    color: #4b5563;
+}
+
+.cancel-btn:hover {
+    background: #f3f4f6;
+}
+
+.update-btn {
+    border: none;
+    background: #993D86;
+    color: #ffffff;
+}
+
+.update-btn:hover {
+    background: #7f326f;
+}
+
+
+/* =========================
+   RESPONSIVE
+========================= */
+
+@media (max-width: 800px) {
+
+    .page-container {
+        width: 94%;
+    }
+
+    .page-header {
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .form-row {
+        grid-template-columns: 1fr;
+        gap: 0;
+    }
+
+    .checkbox-grid {
+        grid-template-columns: 1fr;
+        row-gap: 16px;
+    }
+
+}
+
+@media (max-width: 500px) {
+
+    .page-container {
+        width: 96%;
+        margin-top: 20px;
+    }
+
+    .form-section {
+        padding: 18px;
+        border-radius: 10px;
+    }
+
+    .page-header h1 {
+        font-size: 25px;
+    }
+
+    .form-actions {
+        flex-direction: column-reverse;
+    }
+
+    .cancel-btn,
+    .update-btn {
+        width: 100%;
+    }
+
+    .tournament-picture img {
+        max-width: 100%;
+    }
+
+}

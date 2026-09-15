@@ -1,70 +1,10 @@
 <?php
-require '../db.php';
 
-$message = "";
-$error = "";
-
-$selectedTournamentID = isset($_POST['tournamentID'])
-    ? (int)$_POST['tournamentID']
-    : (isset($_GET['tournamentID']) ? (int)$_GET['tournamentID'] : 0);
-
-$selectedEvent = $_POST['category_registered'] ?? $_GET['event'] ?? "";
-
-
-/* =========================================================
-   GET TOURNAMENTS
-========================================================= */
-
-$tournaments = [];
-
-$sql = "
-    SELECT
-        tournamentID,
-        tournament_name
-    FROM tournament
-    ORDER BY tournament_startdate DESC
-";
-
-$result = $conn->query($sql);
-
-while ($row = $result->fetch_assoc()) {
-    $tournaments[] = $row;
-}
-
-
-/* =========================================================
-   GET EVENTS FOR SELECTED TOURNAMENT
-========================================================= */
-
-$events = [];
-
-if ($selectedTournamentID > 0) {
-
-    $stmt = $conn->prepare("
-        SELECT DISTINCT category_registered
-        FROM tournament_register
-        WHERE tournamentID = ?
-        AND category_registered IS NOT NULL
-        AND category_registered <> ''
-        ORDER BY category_registered ASC
-    ");
-
-    $stmt->bind_param("i", $selectedTournamentID);
-    $stmt->execute();
-
-    $result = $stmt->get_result();
-
-    while ($row = $result->fetch_assoc()) {
-        $events[] = $row['category_registered'];
-    }
-
-    $stmt->close();
-}
-
-
-/* =========================================================
-   HELPER FUNCTIONS
-========================================================= */
+/*
+|--------------------------------------------------------------------------
+| Calculate Next Power of 2
+|--------------------------------------------------------------------------
+*/
 
 function nextPowerOfTwo($number)
 {
@@ -77,6 +17,12 @@ function nextPowerOfTwo($number)
     return $power;
 }
 
+
+/*
+|--------------------------------------------------------------------------
+| Round Names
+|--------------------------------------------------------------------------
+*/
 
 function getRoundName($playersInRound)
 {
@@ -104,26 +50,23 @@ function getRoundName($playersInRound)
             return "Round of 128";
 
         default:
-            return "Round";
+            return "Round of " . $playersInRound;
     }
 }
 
 
 /*
- Standard bracket positions.
-
- Example for 4:
- 1 vs 4
- 2 vs 3
-
- Example for 8:
- 1 vs 8
- 4 vs 5
- 3 vs 6
- 2 vs 7
+|--------------------------------------------------------------------------
+| Generate Standard Seed Positions
+|--------------------------------------------------------------------------
 */
+
 function generateSeedPositions($size)
 {
+    if ($size == 1) {
+        return [1];
+    }
+
     if ($size == 2) {
         return [1, 2];
     }
@@ -132,7 +75,8 @@ function generateSeedPositions($size)
 
     while (count($positions) < $size) {
 
-        $nextSize = count($positions) * 2;
+        $currentSize = count($positions);
+        $nextSize = $currentSize * 2;
 
         $newPositions = [];
 
@@ -151,781 +95,1162 @@ function generateSeedPositions($size)
 }
 
 
-/* =========================================================
-   GENERATE DRAW
-========================================================= */
+/*
+|--------------------------------------------------------------------------
+| Get Players For Draw
+|--------------------------------------------------------------------------
+*/
 
-if (
-    isset($_POST['generate_draw']) &&
-    $selectedTournamentID > 0 &&
-    $selectedEvent !== ""
+function getDrawPlayers(
+    $conn,
+    $tournamentID,
+    $event
 ) {
 
-    try {
+    $stmt = $conn->prepare("
+        SELECT
 
-        $conn->begin_transaction();
+            tr.registrationID,
+
+            p.playerID AS playerID,
+
+            tr.tournamentID,
+            tr.category_registered,
+            tr.seed_number,
+
+            p.player_full_name,
+            p.player_first_name,
+            p.player_last_name,
+            p.player_nationality
+
+        FROM tournament_register tr
+
+        INNER JOIN players p
+            ON p.playerID = tr.playerID
+
+        WHERE tr.tournamentID = ?
+        AND tr.category_registered = ?
+
+        ORDER BY
+
+            CASE
+                WHEN tr.seed_number IS NULL
+                THEN 999999
+                ELSE tr.seed_number
+            END ASC,
+
+            tr.registrationID ASC
+    ");
+
+    if (!$stmt) {
+
+        throw new Exception(
+            "Unable to prepare player query: "
+            . $conn->error
+        );
+    }
+
+    $stmt->bind_param(
+        "is",
+        $tournamentID,
+        $event
+    );
+
+    if (!$stmt->execute()) {
+
+        throw new Exception(
+            "Unable to load draw players: "
+            . $stmt->error
+        );
+    }
+
+    $result = $stmt->get_result();
+
+    $players = [];
+
+    while ($row = $result->fetch_assoc()) {
+
+        $players[] = $row;
+    }
+
+    $stmt->close();
+
+    return $players;
+}
 
 
-        /* -------------------------------------------------
-           CHECK EXISTING DRAW
-        ------------------------------------------------- */
+/*
+|--------------------------------------------------------------------------
+| Advance Player To Next Match
+|--------------------------------------------------------------------------
+|
+| This function receives:
+|
+| $playerID     = P0001
+| $nextMatchID  = 15
+| $position     = 1 or 2
+| $seed         = player's seed number
+|
+|--------------------------------------------------------------------------
+*/
+
+function advancePlayer(
+    $conn,
+    $playerID,
+    $nextMatchID,
+    $position,
+    $seed = null
+) {
+
+    if (
+        empty($playerID) ||
+        empty($nextMatchID)
+    ) {
+        return false;
+    }
+
+    $nextMatchID = (int)$nextMatchID;
+
+    $position = (int)$position;
+
+    if ($seed === null) {
+        $seed = null;
+    } else {
+        $seed = (int)$seed;
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Put Player Into Player 1
+    |--------------------------------------------------------------------------
+    */
+
+    if ($position == 1) {
 
         $stmt = $conn->prepare("
-            SELECT COUNT(*) AS total
-            FROM matches
-            WHERE tournamentID = ?
-            AND category_registered = ?
+            UPDATE matches
+
+            SET
+                player1ID = ?,
+                player1_seed = ?,
+                player1_score = NULL
+
+            WHERE matchID = ?
         ");
 
-        $stmt->bind_param(
-            "is",
-            $selectedTournamentID,
-            $selectedEvent
-        );
-
-        $stmt->execute();
-
-        $existing =
-            $stmt->get_result()->fetch_assoc()['total'];
-
-        $stmt->close();
+    }
 
 
-        if ($existing > 0) {
-            throw new Exception(
-                "A draw has already been generated for this event."
-            );
-        }
+    /*
+    |--------------------------------------------------------------------------
+    | Put Player Into Player 2
+    |--------------------------------------------------------------------------
+    */
 
-
-        /* -------------------------------------------------
-           GET PLAYERS
-        ------------------------------------------------- */
+    else {
 
         $stmt = $conn->prepare("
-            SELECT
-                tr.registrationID,
-                tr.playerID,
-                tr.seed_number,
-                p.player_full_name
+            UPDATE matches
 
-            FROM tournament_register tr
+            SET
+                player2ID = ?,
+                player2_seed = ?,
+                player2_score = NULL
 
-            INNER JOIN players p
-                ON CONVERT(p.playerID USING utf8mb4)
-                 = CONVERT(tr.playerID USING utf8mb4)
-
-            WHERE tr.tournamentID = ?
-            AND tr.category_registered = ?
-
-            ORDER BY
-                CASE
-                    WHEN tr.seed_number IS NULL THEN 1
-                    ELSE 0
-                END,
-                tr.seed_number ASC,
-                tr.registrationID ASC
+            WHERE matchID = ?
         ");
+    }
 
-        $stmt->bind_param(
-            "is",
-            $selectedTournamentID,
-            $selectedEvent
+
+    if (!$stmt) {
+
+        throw new Exception(
+            "Unable to prepare player advancement: "
+            . $conn->error
         );
-
-        $stmt->execute();
-
-        $result = $stmt->get_result();
-
-        $players = [];
-
-        while ($row = $result->fetch_assoc()) {
-            $players[] = $row;
-        }
-
-        $stmt->close();
+    }
 
 
-        $playerCount = count($players);
+    $stmt->bind_param(
+        "sii",
+        $playerID,
+        $seed,
+        $nextMatchID
+    );
 
-        if ($playerCount < 2) {
+
+    if (!$stmt->execute()) {
+
+        throw new Exception(
+            "Unable to advance player: "
+            . $stmt->error
+        );
+    }
+
+    $stmt->close();
+
+    return true;
+}
+
+
+function advanceWinner(
+    $conn,
+    $matchID,
+    $winnerID
+) {
+
+    if (empty($winnerID)) {
+        return false;
+    }
+
+    $matchID = (int)$matchID;
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Get Next Match Information
+    |--------------------------------------------------------------------------
+    */
+
+    $stmt = $conn->prepare("
+        SELECT
+
+            next_matchID,
+            next_match_position,
+
+            CASE
+                WHEN player1ID = ?
+                THEN player1_seed
+
+                WHEN player2ID = ?
+                THEN player2_seed
+
+                ELSE NULL
+            END AS winner_seed
+
+        FROM matches
+
+        WHERE matchID = ?
+    ");
+
+
+    if (!$stmt) {
+
+        throw new Exception(
+            "Unable to prepare winner advancement query: "
+            . $conn->error
+        );
+    }
+
+
+    /*
+    | winnerID is STRING
+    | matchID is INTEGER
+    */
+
+    $stmt->bind_param(
+        "ssi",
+        $winnerID,
+        $winnerID,
+        $matchID
+    );
+
+
+    if (!$stmt->execute()) {
+
+        throw new Exception(
+            "Unable to get next match information: "
+            . $stmt->error
+        );
+    }
+
+
+    $result = $stmt->get_result();
+
+    $match = $result->fetch_assoc();
+
+    $stmt->close();
+
+
+    if (!$match) {
+
+        throw new Exception(
+            "Match ID {$matchID} was not found."
+        );
+    }
+
+
+    if (
+        empty($match['next_matchID'])
+    ) {
+
+        return true;
+    }
+
+
+    $nextMatchID =
+        (int)$match['next_matchID'];
+
+
+    $nextPosition =
+        (int)$match['next_match_position'];
+
+
+    $winnerSeed =
+        $match['winner_seed'] !== null
+        ? (int)$match['winner_seed']
+        : null;
+
+    return advancePlayer(
+        $conn,
+        $winnerID,
+        $nextMatchID,
+        $nextPosition,
+        $winnerSeed
+    );
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| Generate Tournament Draw
+|--------------------------------------------------------------------------
+*/
+
+function generateTournamentDraw(
+    $conn,
+    $tournamentID,
+    $event,
+    $players = null
+) {
+
+    $stmt = $conn->prepare("
+        SELECT COUNT(*) AS total
+
+        FROM matches
+
+        WHERE tournamentID = ?
+        AND category_registered = ?
+    ");
+
+    if (!$stmt) {
+
+        throw new Exception(
+            "Unable to check existing draw: "
+            . $conn->error
+        );
+    }
+
+    $stmt->bind_param(
+        "is",
+        $tournamentID,
+        $event
+    );
+
+    if (!$stmt->execute()) {
+
+        throw new Exception(
+            "Unable to check existing draw: "
+            . $stmt->error
+        );
+    }
+
+    $result = $stmt->get_result();
+
+    $row = $result->fetch_assoc();
+
+    $existing = (int)$row['total'];
+
+    $stmt->close();
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Do Not Regenerate Existing Draw
+    |--------------------------------------------------------------------------
+    */
+
+    if ($existing > 0) {
+
+        return false;
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Get Players
+    |--------------------------------------------------------------------------
+    */
+
+    if ($players === null) {
+
+        $players =
+            getDrawPlayers(
+                $conn,
+                $tournamentID,
+                $event
+            );
+    }
+
+
+    $playerCount =
+        count($players);
+
+
+    if ($playerCount < 2) {
+
+        throw new Exception(
+            "At least 2 players are required to create a draw."
+        );
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Check Seeds
+    |--------------------------------------------------------------------------
+    */
+
+    foreach ($players as $player) {
+
+        if (
+            empty($player['seed_number']) ||
+            (int)$player['seed_number'] <= 0
+        ) {
+
             throw new Exception(
-                "At least 2 players are required to generate a draw."
+                "Player "
+                . $player['player_full_name']
+                . " does not have a valid seed number."
             );
         }
+    }
 
 
-        /* -------------------------------------------------
-           CREATE BRACKET SIZE
-        ------------------------------------------------- */
+    /*
+    |--------------------------------------------------------------------------
+    | Calculate Bracket Size
+    |--------------------------------------------------------------------------
+    */
 
-        $bracketSize = nextPowerOfTwo($playerCount);
-
-        /*
-         3 players  -> bracket 4
-         5 players  -> bracket 8
-         9 players  -> bracket 16
-        */
-
-
-        /* -------------------------------------------------
-           MAP PLAYERS BY SEED
-        ------------------------------------------------- */
-
-        $seedPlayers = [];
-        $unseededPlayers = [];
-
-        foreach ($players as $player) {
-
-            if (
-                $player['seed_number'] !== null &&
-                $player['seed_number'] !== ''
-            ) {
-
-                $seed =
-                    (int)$player['seed_number'];
-
-                $seedPlayers[$seed] = $player;
-
-            } else {
-
-                $unseededPlayers[] = $player;
-            }
-        }
+    $bracketSize =
+        nextPowerOfTwo(
+            $playerCount
+        );
 
 
-        /* -------------------------------------------------
-           STANDARD DRAW POSITIONS
-        ------------------------------------------------- */
+    $byeCount =
+        $bracketSize - $playerCount;
 
-        $seedPositions =
-            generateSeedPositions($bracketSize);
 
-        $bracket = array_fill(
+    /*
+    |--------------------------------------------------------------------------
+    | Create Seed Map
+    |--------------------------------------------------------------------------
+    */
+
+    $seedMap = [];
+
+    foreach ($players as $player) {
+
+        $seed =
+            (int)$player['seed_number'];
+
+        $seedMap[$seed] =
+            $player;
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Generate Standard Seed Positions
+    |--------------------------------------------------------------------------
+    */
+
+    $seedPositions =
+        generateSeedPositions(
+            $bracketSize
+        );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Create Bracket
+    |--------------------------------------------------------------------------
+    */
+
+    $bracket =
+        array_fill(
             0,
             $bracketSize,
             null
         );
 
 
+    /*
+    |--------------------------------------------------------------------------
+    | Put Players Into Bracket
+    |--------------------------------------------------------------------------
+    */
+
+    foreach (
+        $seedPositions as $index => $seed
+    ) {
+
+        if (isset($seedMap[$seed])) {
+
+            $bracket[$index] =
+                $seedMap[$seed];
+        }
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Total Number Of Rounds
+    |--------------------------------------------------------------------------
+    */
+
+    $totalRounds =
+        (int)log(
+            $bracketSize,
+            2
+        );
+
+
+    $roundMatches = [];
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Prepare Match Insert
+    |--------------------------------------------------------------------------
+    |
+    | player1ID and player2ID are VARCHAR.
+    |
+    */
+
+    $stmtInsert = $conn->prepare("
+        INSERT INTO matches (
+
+            tournamentID,
+            category_registered,
+
+            round_number,
+            round_name,
+            match_number,
+
+            player1ID,
+            player2ID,
+
+            player1_seed,
+            player2_seed,
+
+            player1_score,
+            player2_score,
+
+            match_status
+
+        )
+
+        VALUES (
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?
+        )
+    ");
+
+
+    if (!$stmtInsert) {
+
+        throw new Exception(
+            "Unable to prepare match insertion: "
+            . $conn->error
+        );
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | ROUND 1
+    |--------------------------------------------------------------------------
+    */
+
+    $round = 1;
+
+    $matchesInRound =
+        (int)($bracketSize / 2);
+
+
+    $roundName =
+        getRoundName(
+            $bracketSize
+        );
+
+
+    $roundMatches[$round] = [];
+
+
+    for (
+        $matchNo = 1;
+        $matchNo <= $matchesInRound;
+        $matchNo++
+    ) {
+
+        $index1 =
+            ($matchNo - 1) * 2;
+
+        $index2 =
+            $index1 + 1;
+
+
+        $player1 =
+            $bracket[$index1];
+
+        $player2 =
+            $bracket[$index2];
+
+
         /*
-         Put seeded players first.
+        |--------------------------------------------------------------------------
+        | Player IDs
+        |--------------------------------------------------------------------------
+        |
+        | DO NOT CAST THESE TO INTEGER.
+        |
+        | P0001 must remain P0001.
+        |
         */
 
-        foreach ($seedPositions as $index => $seed) {
+        $player1ID =
+            $player1
+            ? $player1['playerID']
+            : null;
 
-            if (isset($seedPlayers[$seed])) {
-                $bracket[$index] =
-                    $seedPlayers[$seed];
-            }
+
+        $player2ID =
+            $player2
+            ? $player2['playerID']
+            : null;
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Seeds
+        |--------------------------------------------------------------------------
+        */
+
+        $player1Seed =
+            $player1
+            ? (int)$player1['seed_number']
+            : null;
+
+
+        $player2Seed =
+            $player2
+            ? (int)$player2['seed_number']
+            : null;
+
+
+        $status =
+            "Pending";
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Insert
+        |--------------------------------------------------------------------------
+        |
+        | i = tournamentID
+        | s = event
+        | i = round
+        | s = roundName
+        | i = matchNo
+        | s = player1ID
+        | s = player2ID
+        | i = seed1
+        | i = seed2
+        | s = status
+        |
+        */
+
+        $stmtInsert->bind_param(
+            "isisissiis",
+            $tournamentID,
+            $event,
+            $round,
+            $roundName,
+            $matchNo,
+            $player1ID,
+            $player2ID,
+            $player1Seed,
+            $player2Seed,
+            $status
+        );
+
+
+        if (!$stmtInsert->execute()) {
+
+            throw new Exception(
+                "Unable to create match: "
+                . $stmtInsert->error
+            );
         }
 
 
-        /*
-         Fill remaining spaces using
-         unseeded players.
-        */
-
-        foreach ($bracket as $index => $value) {
-
-            if (
-                $value === null &&
-                count($unseededPlayers) > 0
-            ) {
-
-                $bracket[$index] =
-                    array_shift($unseededPlayers);
-            }
-        }
+        $matchID =
+            $stmtInsert->insert_id;
 
 
-        /* -------------------------------------------------
-           ROUND COUNT
-        ------------------------------------------------- */
-
-        $totalRounds =
-            (int)log($bracketSize, 2);
-
-        $roundMatches = [];
+        $roundMatches[$round][] =
+            $matchID;
+    }
 
 
-        /* =================================================
-           CREATE ALL MATCHES
-        ================================================= */
+    /*
+    |--------------------------------------------------------------------------
+    | FUTURE ROUNDS
+    |--------------------------------------------------------------------------
+    */
 
-        for (
-            $round = 1;
-            $round <= $totalRounds;
-            $round++
-        ) {
+    for (
+        $round = 2;
+        $round <= $totalRounds;
+        $round++
+    ) {
 
-            $playersInRound =
+        $previousRound =
+            $round - 1;
+
+
+        $matchesInRound =
+            (int)(
+                count(
+                    $roundMatches[$previousRound]
+                ) / 2
+            );
+
+
+        $playersInRound =
+            (int)(
                 $bracketSize /
-                pow(2, $round - 1);
-
-            $matchCount =
-                $playersInRound / 2;
-
-            $roundName =
-                getRoundName($playersInRound);
-
-            $roundMatches[$round] = [];
+                pow(
+                    2,
+                    $round - 1
+                )
+            );
 
 
-            for (
-                $matchNo = 1;
-                $matchNo <= $matchCount;
-                $matchNo++
-            ) {
-
-                $player1ID = null;
-                $player2ID = null;
-
-                $player1Seed = null;
-                $player2Seed = null;
+        $roundName =
+            getRoundName(
+                $playersInRound
+            );
 
 
-                /*
-                 Only Round 1 receives actual players.
-                */
+        $roundMatches[$round] = [];
 
-                if ($round == 1) {
-
-                    $index1 =
-                        ($matchNo - 1) * 2;
-
-                    $index2 =
-                        $index1 + 1;
-
-
-                    $player1 =
-                        $bracket[$index1];
-
-                    $player2 =
-                        $bracket[$index2];
-
-
-                    if ($player1) {
-
-                        $player1ID =
-                            $player1['playerID'];
-
-                        $player1Seed =
-                            $player1['seed_number'];
-                    }
-
-
-                    if ($player2) {
-
-                        $player2ID =
-                            $player2['playerID'];
-
-                        $player2Seed =
-                            $player2['seed_number'];
-                    }
-                }
-
-
-                $stmtInsert =
-                    $conn->prepare("
-                        INSERT INTO matches (
-                            tournamentID,
-                            category_registered,
-                            round_number,
-                            round_name,
-                            match_number,
-                            player1ID,
-                            player2ID,
-                            player1_seed,
-                            player2_seed
-                        )
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    ");
-
-
-                $stmtInsert->bind_param(
-                    "isisissii",
-                    $selectedTournamentID,
-                    $selectedEvent,
-                    $round,
-                    $roundName,
-                    $matchNo,
-                    $player1ID,
-                    $player2ID,
-                    $player1Seed,
-                    $player2Seed
-                );
-
-
-                $stmtInsert->execute();
-
-                $matchID =
-                    $conn->insert_id;
-
-                $roundMatches[$round][$matchNo] =
-                    $matchID;
-
-                $stmtInsert->close();
-            }
-        }
-
-
-        /* =================================================
-           CONNECT MATCHES
-        ================================================= */
 
         for (
-            $round = 1;
-            $round < $totalRounds;
-            $round++
+            $matchNo = 1;
+            $matchNo <= $matchesInRound;
+            $matchNo++
         ) {
 
-            foreach (
-                $roundMatches[$round]
-                as $matchNo => $matchID
-            ) {
+            $player1ID = null;
+            $player2ID = null;
 
-                /*
-                 Matches 1 & 2 → next Match 1
+            $player1Seed = null;
+            $player2Seed = null;
 
-                 Matches 3 & 4 → next Match 2
-                */
-
-                $nextMatchNumber =
-                    (int)ceil($matchNo / 2);
-
-                $nextMatchID =
-                    $roundMatches[
-                        $round + 1
-                    ][
-                        $nextMatchNumber
-                    ];
+            $status = "Pending";
 
 
-                /*
-                 Odd match -> player1 slot
-                 Even match -> player2 slot
-                */
-
-                if ($matchNo % 2 == 1) {
-                    $nextPosition =
-                        "player1";
-                } else {
-                    $nextPosition =
-                        "player2";
-                }
-
-
-                $stmtUpdate =
-                    $conn->prepare("
-                        UPDATE matches
-                        SET
-                            next_matchID = ?,
-                            next_match_position = ?
-                        WHERE matchID = ?
-                    ");
+            $stmtInsert->bind_param(
+                "isisissiis",
+                $tournamentID,
+                $event,
+                $round,
+                $roundName,
+                $matchNo,
+                $player1ID,
+                $player2ID,
+                $player1Seed,
+                $player2Seed,
+                $status
+            );
 
 
-                $stmtUpdate->bind_param(
-                    "isi",
-                    $nextMatchID,
-                    $nextPosition,
-                    $matchID
+            if (!$stmtInsert->execute()) {
+
+                throw new Exception(
+                    "Unable to create future match: "
+                    . $stmtInsert->error
                 );
-
-                $stmtUpdate->execute();
-                $stmtUpdate->close();
             }
+
+
+            $matchID =
+                $stmtInsert->insert_id;
+
+
+            $roundMatches[$round][] =
+                $matchID;
         }
+    }
 
 
-        /* =================================================
-           HANDLE BYES
-        ================================================= */
+    $stmtInsert->close();
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Connect Rounds
+    |--------------------------------------------------------------------------
+    */
+
+    for (
+        $round = 1;
+        $round < $totalRounds;
+        $round++
+    ) {
+
+        $currentMatches =
+            $roundMatches[$round];
+
+
+        $nextMatches =
+            $roundMatches[$round + 1];
+
 
         foreach (
-            $roundMatches[1]
-            as $matchNo => $matchID
+            $currentMatches as $index => $currentMatchID
         ) {
+
+            $nextMatchIndex =
+                (int)floor(
+                    $index / 2
+                );
+
+
+            $nextMatchID =
+                $nextMatches[
+                    $nextMatchIndex
+                ];
+
+
+            /*
+            | Even match -> Player 1
+            | Odd match  -> Player 2
+            */
+
+            $nextPosition =
+                ($index % 2 == 0)
+                ? 1
+                : 2;
+
 
             $stmt =
                 $conn->prepare("
-                    SELECT *
-                    FROM matches
+                    UPDATE matches
+
+                    SET
+                        next_matchID = ?,
+                        next_match_position = ?
+
                     WHERE matchID = ?
                 ");
 
+
+            if (!$stmt) {
+
+                throw new Exception(
+                    "Unable to connect matches: "
+                    . $conn->error
+                );
+            }
+
+
             $stmt->bind_param(
-                "i",
-                $matchID
+                "iii",
+                $nextMatchID,
+                $nextPosition,
+                $currentMatchID
             );
 
-            $stmt->execute();
 
-            $match =
-                $stmt
-                ->get_result()
-                ->fetch_assoc();
+            if (!$stmt->execute()) {
+
+                throw new Exception(
+                    "Unable to connect matches: "
+                    . $stmt->error
+                );
+            }
+
 
             $stmt->close();
+        }
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Process BYEs
+    |--------------------------------------------------------------------------
+    */
+
+    if ($totalRounds >= 2) {
+
+        for (
+            $index = 0;
+            $index < count($roundMatches[1]);
+            $index++
+        ) {
+
+            $player1 =
+                $bracket[
+                    $index * 2
+                ];
+
+
+            $player2 =
+                $bracket[
+                    ($index * 2) + 1
+                ];
 
 
             /*
-             Player 1 exists but Player 2 BYE.
+            |--------------------------------------------------------------------------
+            | Player 1 Gets BYE
+            |--------------------------------------------------------------------------
             */
 
             if (
-                $match['player1ID'] &&
-                !$match['player2ID']
+                $player1 &&
+                !$player2
             ) {
 
-                $winner =
-                    $match['player1ID'];
+                $matchID =
+                    $roundMatches[1][$index];
+
+
+                $winnerID =
+                    $player1['playerID'];
+
+
+                $winnerSeed =
+                    (int)$player1['seed_number'];
+
+
+                /*
+                | Set Winner
+                */
 
                 $stmt =
                     $conn->prepare("
                         UPDATE matches
+
                         SET
                             winnerID = ?,
                             match_status = 'Completed'
+
                         WHERE matchID = ?
                     ");
 
+
+                if (!$stmt) {
+
+                    throw new Exception(
+                        "Unable to prepare BYE update: "
+                        . $conn->error
+                    );
+                }
+
+
                 $stmt->bind_param(
                     "si",
-                    $winner,
+                    $winnerID,
                     $matchID
                 );
 
-                $stmt->execute();
+
+                if (!$stmt->execute()) {
+
+                    throw new Exception(
+                        "Unable to update BYE winner: "
+                        . $stmt->error
+                    );
+                }
+
+
                 $stmt->close();
 
 
-                advancePlayer(
-                    $conn,
-                    $matchID,
-                    $winner
-                );
+                /*
+                |--------------------------------------------------------------------------
+                | Find Next Match
+                |--------------------------------------------------------------------------
+                */
+
+                $nextMatchIndex =
+                    (int)floor(
+                        $index / 2
+                    );
+
+
+                if (
+                    isset(
+                        $roundMatches[2][$nextMatchIndex]
+                    )
+                ) {
+
+                    $nextMatchID =
+                        $roundMatches[2]
+                        [$nextMatchIndex];
+
+
+                    $nextPosition =
+                        ($index % 2 == 0)
+                        ? 1
+                        : 2;
+
+
+                    advancePlayer(
+                        $conn,
+                        $winnerID,
+                        $nextMatchID,
+                        $nextPosition,
+                        $winnerSeed
+                    );
+                }
             }
 
 
             /*
-             Player 2 exists but Player 1 BYE.
+            |--------------------------------------------------------------------------
+            | Player 2 Gets BYE
+            |--------------------------------------------------------------------------
             */
 
             elseif (
-                !$match['player1ID'] &&
-                $match['player2ID']
+                !$player1 &&
+                $player2
             ) {
 
-                $winner =
-                    $match['player2ID'];
+                $matchID =
+                    $roundMatches[1][$index];
+
+
+                $winnerID =
+                    $player2['playerID'];
+
+
+                $winnerSeed =
+                    (int)$player2['seed_number'];
+
+
+                /*
+                | Set Winner
+                */
 
                 $stmt =
                     $conn->prepare("
                         UPDATE matches
+
                         SET
                             winnerID = ?,
                             match_status = 'Completed'
+
                         WHERE matchID = ?
                     ");
 
+
+                if (!$stmt) {
+
+                    throw new Exception(
+                        "Unable to prepare BYE update: "
+                        . $conn->error
+                    );
+                }
+
+
                 $stmt->bind_param(
                     "si",
-                    $winner,
+                    $winnerID,
                     $matchID
                 );
 
-                $stmt->execute();
+
+                if (!$stmt->execute()) {
+
+                    throw new Exception(
+                        "Unable to update BYE winner: "
+                        . $stmt->error
+                    );
+                }
+
+
                 $stmt->close();
 
 
-                advancePlayer(
-                    $conn,
-                    $matchID,
-                    $winner
-                );
+                /*
+                |--------------------------------------------------------------------------
+                | Find Next Match
+                |--------------------------------------------------------------------------
+                */
+
+                $nextMatchIndex =
+                    (int)floor(
+                        $index / 2
+                    );
+
+
+                if (
+                    isset(
+                        $roundMatches[2][$nextMatchIndex]
+                    )
+                ) {
+
+                    $nextMatchID =
+                        $roundMatches[2]
+                        [$nextMatchIndex];
+
+
+                    $nextPosition =
+                        ($index % 2 == 0)
+                        ? 1
+                        : 2;
+
+
+                    advancePlayer(
+                        $conn,
+                        $winnerID,
+                        $nextMatchID,
+                        $nextPosition,
+                        $winnerSeed
+                    );
+                }
             }
         }
-
-
-        $conn->commit();
-
-        header(
-            "Location: draw.php?tournamentID="
-            . $selectedTournamentID
-            . "&event="
-            . urlencode($selectedEvent)
-        );
-
-        exit;
-
-
-    } catch (Exception $e) {
-
-        $conn->rollback();
-
-        $error = $e->getMessage();
-    }
-}
-
-
-/* =========================================================
-   ADVANCE PLAYER
-========================================================= */
-
-function advancePlayer(
-    $conn,
-    $matchID,
-    $winnerID
-) {
-
-    $stmt =
-        $conn->prepare("
-            SELECT
-                next_matchID,
-                next_match_position
-            FROM matches
-            WHERE matchID = ?
-        ");
-
-    $stmt->bind_param(
-        "i",
-        $matchID
-    );
-
-    $stmt->execute();
-
-    $match =
-        $stmt
-        ->get_result()
-        ->fetch_assoc();
-
-    $stmt->close();
-
-
-    if (!$match['next_matchID']) {
-        return;
     }
 
 
-    if (
-        $match['next_match_position']
-        === 'player1'
-    ) {
+    /*
+    |--------------------------------------------------------------------------
+    | Return Draw Information
+    |--------------------------------------------------------------------------
+    */
 
-        $stmt =
-            $conn->prepare("
-                UPDATE matches
-                SET player1ID = ?
-                WHERE matchID = ?
-            ");
+    return [
 
-    } else {
+        'playerCount' =>
+            $playerCount,
 
-        $stmt =
-            $conn->prepare("
-                UPDATE matches
-                SET player2ID = ?
-                WHERE matchID = ?
-            ");
-    }
+        'bracketSize' =>
+            $bracketSize,
 
+        'byeCount' =>
+            $byeCount,
 
-    $stmt->bind_param(
-        "si",
-        $winnerID,
-        $match['next_matchID']
-    );
-
-    $stmt->execute();
-    $stmt->close();
+        'totalRounds' =>
+            $totalRounds
+    ];
 }
-?>
-
-<!DOCTYPE html>
-<html lang="en">
-
-<head>
-
-<meta charset="UTF-8">
-
-<title>Generate Tournament Draw</title>
-
-<style>
-
-body {
-    font-family: Arial, sans-serif;
-    background: #f5f5f5;
-    margin: 0;
-    padding: 40px;
-}
-
-.container {
-    max-width: 1000px;
-    margin: auto;
-    background: white;
-    padding: 30px;
-    border-radius: 16px;
-    box-shadow: 0 4px 15px rgba(0,0,0,.08);
-}
-
-h1 {
-    color: #993D86;
-}
-
-.form-group {
-    margin-bottom: 20px;
-}
-
-label {
-    display: block;
-    font-weight: bold;
-    margin-bottom: 8px;
-}
-
-select {
-    width: 100%;
-    padding: 12px;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-}
-
-button {
-    background: #993D86;
-    color: white;
-    border: none;
-    padding: 12px 25px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-weight: bold;
-}
-
-button:hover {
-    opacity: .9;
-}
-
-.error {
-    background: #ffe6e6;
-    color: #b30000;
-    padding: 12px;
-    border-radius: 8px;
-    margin-bottom: 20px;
-}
-
-</style>
-
-</head>
-
-<body>
-
-<div class="container">
-
-<h1>Generate Tournament Draw</h1>
-
-<?php if ($error): ?>
-
-<div class="error">
-    <?= htmlspecialchars($error) ?>
-</div>
-
-<?php endif; ?>
-
-
-<form method="GET">
-
-<div class="form-group">
-
-<label>Tournament</label>
-
-<select
-    name="tournamentID"
-    onchange="this.form.submit()"
->
-
-<option value="">
-    Select Tournament
-</option>
-
-<?php foreach ($tournaments as $tournament): ?>
-
-<option
-    value="<?= $tournament['tournamentID'] ?>"
-    <?= $selectedTournamentID ==
-        $tournament['tournamentID']
-        ? 'selected'
-        : '' ?>
->
-
-<?= htmlspecialchars(
-    $tournament['tournament_name']
-) ?>
-
-</option>
-
-<?php endforeach; ?>
-
-</select>
-
-</div>
-
-</form>
-
-
-<?php if ($selectedTournamentID): ?>
-
-<form method="POST">
-
-<input
-    type="hidden"
-    name="tournamentID"
-    value="<?= $selectedTournamentID ?>"
->
-
-<div class="form-group">
-
-<label>Event</label>
-
-<select
-    name="category_registered"
-    required
->
-
-<option value="">
-    Select Event
-</option>
-
-<?php foreach ($events as $event): ?>
-
-<option
-    value="<?= htmlspecialchars($event) ?>"
->
-
-<?= htmlspecialchars($event) ?>
-
-</option>
-
-<?php endforeach; ?>
-
-</select>
-
-</div>
-
-
-<button
-    type="submit"
-    name="generate_draw"
->
-
-Generate Draw
-
-</button>
-
-</form>
-
-<?php endif; ?>
-
-</div>
-
-</body>
-</html>

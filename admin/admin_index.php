@@ -68,7 +68,7 @@ function tournament_card($tournament, $status = null, $status_class = "", $show_
                 <span class="visually-hidden">Search all tournaments</span>
                 <input id="recent-search" type="search" placeholder="Search tournaments..." autocomplete="off">
             </label>
-            <a class="add-tournament-btn" href="tournaments.php?action=add">+ Add Tournament</a>
+            <a class="add-tournament-btn" href="admin_create_tournament.php">+ Add Tournament</a>
         </div>
 
         <section class="tournament-section ongoing-section">
