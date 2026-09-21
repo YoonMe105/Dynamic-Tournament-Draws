@@ -4,6 +4,7 @@ session_start();
 require '../db.php';
 
 $player_id = trim((string) ($_GET['id'] ?? ''));
+$tournamentID = trim((string) ($_GET['tournamentID'] ?? ''));
 $edit_mode = isset($_GET['edit']) && $_GET['edit'] === '1';
 $player = null;
 
@@ -41,7 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $player_full_name = trim($player_first_name . ' ' . $player_last_name);
 
-    $update_query = "UPDATE players SET player_password = ?, player_full_name = ?, player_first_name = ?, player_last_name = ?, player_nationalid = ?, player_passport = ?, player_dob = ?, player_gender = ?, player_nationality = ?, asf_member_no = ?, spin_number = ?, national_ranking = ?, ajss_ranking = ?, psa_ranking = ?, player_contact = ?, player_email = ?, player_active = ? WHERE playerID = ?";
+    $update_query = "UPDATE players SET player_password = ?, player_full_name = ?, player_first_name = ?, player_last_name = ?, player_nationalid = ?, player_passport = ?, player_dob = ?, player_gender = ?, player_nationality = ?, asf_member_no = ?, spin_number = ?, national_ranking = ?, ajss_ranking = ?, world_ranking = ?, player_contact = ?, player_email = ?, player_active = ? WHERE playerID = ?";
 
     $stmt = $conn->prepare($update_query);
 
@@ -75,7 +76,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $stmt->close();
 
-        header("Location: admin_player_profile.php?id=" . urlencode($player_id) . "&updated=1");
+        echo "
+        <script>
+            alert('Update Successfully');
+            window.location.href = 'admin_player_profile.php?id="
+            . urlencode($player_id)
+            . "&tournamentID="
+            . urlencode($tournamentID)
+            . "';
+        </script>
+        ";
+
         exit;
 
     } else {
@@ -94,6 +105,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Player Profile | T_Software</title>
     <link href="./assets/style.css" rel="stylesheet" type="text/css">
+    <link href="./assets/player_profile.css" rel="stylesheet" type="text/css" />
 </head>
 
 <body>
@@ -123,8 +135,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <?php endif; ?>
 
         <?php if ($edit_mode): ?>
-            <form id="player-form" method="post" action="admin_player_profile.php?id=<?= urlencode($player['playerID']) ?>&edit=1">
+            <form id="player-form" method="post" action="admin_player_profile.php?id=<?= urlencode($player['playerID']) ?>&tournamentID=<?= urlencode($tournamentID) ?>&edit=1">
+
                 <input type="hidden" name="player_id" value="<?= htmlspecialchars($player['playerID']) ?>">
+
+                <input type="hidden" name="tournamentID" value="<?= htmlspecialchars($tournamentID) ?>">
         <?php endif; ?>
 
 
@@ -349,7 +364,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
 
                 <div class="profile-field">
-                    <span>PSA World Ranking</span>
+                    <span>World Ranking</span>
 
                     <?php if ($edit_mode): ?>
 
@@ -444,12 +459,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             <?php if ($edit_mode): ?>
 
-                <a class="details-btn" href="admin_player_profile.php?id=<?= urlencode($player['playerID']) ?>">Back</a>
-                <button class="details-btn update-btn" type="submit">Update</button>
+                <a class="details-btn" href="admin_each_tournament.php?id=<?= urlencode($tournamentID) ?>">Back</a>
+                <button class="details-btn update-btn" type="submit">Save</button>
 
             <?php else: ?>
 
-                <a class="details-btn" href="admin_player_lists.php">Back</a>
+                <a class="details-btn" href="admin_each_tournament.php?id=<?= urlencode($tournamentID) ?>">Back</a>
                 <a class="details-btn update-btn" href="admin_player_profile.php?id=<?= urlencode($player['playerID']) ?>&edit=1">Update</a>
 
             <?php endif; ?>
@@ -469,7 +484,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <p>The player you are looking for does not exist.</p>
         </div>
 
-        <a class="details-btn" href="admin_player_lists.php">Back to Players</a>
+        <a class="details-btn" href="admin_each_tournament.php?id=<?= urlencode($tournamentID) ?>">Back to Tournaments</a>
 
     <?php endif; ?>
 

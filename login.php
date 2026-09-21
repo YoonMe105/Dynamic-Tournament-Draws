@@ -173,7 +173,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     <p>PASSWORD <span>*</span> </p>
 
                     <div class="password-container">
-                        <input type="password" name="password" id="password" placeholder="Enter your password" minlength="6" required >
+                        <input type="password" name="password" id="password" placeholder="Enter your password" required >
                         <i class="fas fa-eye-slash" id="show-password" ></i>
                     </div>
                     <br>

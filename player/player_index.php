@@ -1,75 +1,97 @@
 <?php
-
 session_start();
+
+if ($_SESSION["userid"] == null || $_SESSION["role"] != "player") {
+    header("Location: ../login.php");
+    exit();
+}
 
 require_once "../db.php";
 
+$currentDate = date("Y-m-d H:i:s");
 
-$sql = "SELECT tournamentID, tournament_startdate, tournament_enddate, tournament_name, tournament_description, tournament_detail_link, tournament_location, tournament_fee, tournament_deadline, tournament_type, tournament_picture
+$sql = "SELECT 
+            tournamentID,
+            tournament_name,
+            tournament_deadline,
+            tournament_picture
         FROM tournament
-        ORDER BY tournament_startdate ASC";
+        WHERE tournament_deadline >= '$currentDate'
+        ORDER BY tournament_deadline ASC";
 
 $result = mysqli_query($conn, $sql);
 
-
 if (!$result) {
-
     die("Database Error: " . mysqli_error($conn));
-
 }
 
-
-$currentTournaments = [];
-
-$pastTournaments = [];
-
-
-$currentDate = new DateTime();
-
+$tournaments = [];
 
 while ($tournament = mysqli_fetch_assoc($result)) {
-
-    $endDate = new DateTime($tournament['tournament_enddate']);
-
-    if ($endDate >= $currentDate) {
-
-        $currentTournaments[] = $tournament;
-
-    } else {
-
-        $pastTournaments[] = $tournament;
-
-    }
-
+    $tournaments[] = $tournament;
 }
-
 ?>
 
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
+
     <meta charset="UTF-8">
+
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Player | Home</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css">
+
+    <title>Player | Tournaments</title>
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" />
+
+    <!-- Navbar CSS -->
     <link rel="stylesheet" href="./assets/css/navbar.css" type="text/css" />
 
-    <link href="./assets/css/index.css" rel="stylesheet" type="text/css" />
-
+    <!-- Page CSS -->
+    <link rel="stylesheet" href="./assets/css/index.css" type="text/css" />
 </head>
+
+
 <body>
 
+
     <header class="player-header">
+
         <div class="header-logo">
-            <a href="index.php">Players</a>
+
+            <a href="index.php">
+                Players
+            </a>
         </div>
 
+
         <nav class="header-nav">
-            <a href="./player_index.php">Tournament</a>
-            <a href="my_profile.php">My Profile</a>
-            <a href="../logout.php" class="logout-btn">Logout</a>
+
+            <div class="tournament-menu">
+                <a href="./player_index.php">
+                    Tournament
+                </a>
+
+                <div class="sub-navbar">
+                    <a href="./my_tournaments.php">My Tournaments</a>
+                </div>
+            </div>
+
+            <a href="my_profile.php">
+                My Profile
+            </a>
+
+            <a href="../logout.php" class="logout-btn">
+                Logout
+            </a>
+
         </nav>
+
     </header>
+
+
 
     <main class="container">
 
@@ -77,31 +99,61 @@ while ($tournament = mysqli_fetch_assoc($result)) {
 
             <div class="section-title">
 
-                <h2>Current Tournaments</h2>
+                <h2>Tournaments</h2>
 
-                <p>View tournaments that are currently available or upcoming.</p>
+                <!-- Search -->
+                <div class="tournament-search">
+
+                    <i class="fa-solid fa-magnifying-glass"></i>
+
+                    <input
+                        type="text"
+                        id="tournamentSearch"
+                        placeholder="Search tournaments..."
+                        autocomplete="off"
+                    >
+
+                </div>
 
             </div>
 
 
-            <div class="tournament-grid">
+            <div class="tournament-grid" id="tournamentGrid">
 
-                <?php if (count($currentTournaments) > 0): ?>
+                <?php if (count($tournaments) > 0): ?>
 
-                    <?php foreach ($currentTournaments as $tournament): ?>
+                    <?php foreach ($tournaments as $tournament): ?>
 
-                        <div class="tournament-card">
+                        <a
+                            href="tournament_details.php?tournamentID=<?= $tournament['tournamentID'] ?>"
+                            class="tournament-card"
+                        >
 
+                            <!-- Image -->
                             <div class="tournament-image">
 
                                 <?php if (!empty($tournament['tournament_picture'])): ?>
 
-                                    <img src="../uploads/tournaments/<?= htmlspecialchars($tournament['tournament_picture']) ?>" alt="Tournament Picture">
+                                    <img
+                                        src="../uploads/tournaments/<?= htmlspecialchars($tournament['tournament_picture']) ?>"
+                                        alt="<?= htmlspecialchars($tournament['tournament_name']) ?>"
+                                    >
 
                                 <?php else: ?>
 
                                     <div class="no-image">
-                                        🏆
+                                        <i class="fa-solid fa-trophy"></i>
+                                    </div>
+
+                                <?php endif; ?>
+
+
+                                <!-- Tournament Type -->
+                                <?php if (!empty($tournament['tournament_type'])): ?>
+
+                                    <div class="tournament-type">
+                                        Type:
+                                        <?= htmlspecialchars($tournament['tournament_type']) ?>
                                     </div>
 
                                 <?php endif; ?>
@@ -109,215 +161,41 @@ while ($tournament = mysqli_fetch_assoc($result)) {
                             </div>
 
 
+                            <!-- Card Content -->
                             <div class="tournament-content">
 
-                                <span class="tournament-type">
-                                    <?= htmlspecialchars($tournament['tournament_type']) ?>
-                                </span>
-
-
-                                <h2>
+                                <!-- Tournament Name -->
+                                <h3>
                                     <?= htmlspecialchars($tournament['tournament_name']) ?>
-                                </h2>
+                                </h3>
 
 
-                                <p class="description">
-                                    <?= htmlspecialchars($tournament['tournament_description']) ?>
-                                </p>
+                                <!-- Registration Deadline -->
+                                <div class="registration-info">
 
-
-                                <div class="tournament-info">
-
-                                    <div class="info-row">
-
-                                        <span class="info-icon">📅</span>
-
-                                        <span class="info-label">
-                                            Date:
-                                        </span>
-
-                                        <span class="info-value">
-                                            <?= date("d M Y", strtotime($tournament['tournament_startdate'])) ?>
-                                            -
-                                            <?= date("d M Y", strtotime($tournament['tournament_enddate'])) ?>
-                                        </span>
-
+                                    <div class="registration-label">
+                                        Registration Deadline
                                     </div>
 
-
-                                    <div class="info-row">
-
-                                        <span class="info-icon">📍</span>
-
-                                        <span class="info-label">
-                                            Location:
-                                        </span>
-
-                                        <span class="info-value">
-                                            <?= htmlspecialchars($tournament['tournament_location']) ?>
-                                        </span>
-
-                                    </div>
-
-
-                                    <div class="info-row">
-
-                                        <span class="info-icon">💰</span>
-
-                                        <span class="info-label">
-                                            Fee:
-                                        </span>
-
-                                        <span class="info-value">
-                                            <?= htmlspecialchars($tournament['tournament_fee']) ?>
-                                        </span>
-
-                                    </div>
-
-
-                                    <div class="info-row">
-
-                                        <span class="info-icon">⏰</span>
-
-                                        <span class="info-label">
-                                            Deadline:
-                                        </span>
-
-                                        <span class="info-value">
-                                            <?= date("d M Y", strtotime($tournament['tournament_deadline'])) ?>
-                                        </span>
-
+                                    <div class="registration-date">
+                                        <?= date(
+                                            "Y-m-d H:i:s",
+                                            strtotime($tournament['tournament_deadline'])
+                                        ) ?>
                                     </div>
 
                                 </div>
 
-
-                                <a href="tournament_details.php?tournamentID=<?= $tournament['tournamentID'] ?>" class="view-btn">
-                                    View Tournament
-                                </a>
-
                             </div>
 
-                        </div>
+                        </a>
 
                     <?php endforeach; ?>
 
                 <?php else: ?>
 
                     <p class="empty-message">
-                        There are currently no current tournaments.
-                    </p>
-
-                <?php endif; ?>
-
-            </div>
-
-        </section>
-
-
-        <section class="tournament-section past-section">
-
-            <div class="section-title">
-
-                <h2>Past Tournaments</h2>
-
-                <p>View tournaments that have already ended.</p>
-
-            </div>
-
-
-            <div class="tournament-grid">
-
-                <?php if (count($pastTournaments) > 0): ?>
-
-                    <?php foreach ($pastTournaments as $tournament): ?>
-
-                        <div class="tournament-card past-card">
-
-                            <div class="tournament-image">
-
-                                <?php if (!empty($tournament['tournament_picture'])): ?>
-
-                                    <img src="../uploads/tournaments/<?= htmlspecialchars($tournament['tournament_picture']) ?>" alt="Tournament Picture">
-
-                                <?php else: ?>
-
-                                    <div class="no-image">
-                                        🏆
-                                    </div>
-
-                                <?php endif; ?>
-
-                            </div>
-
-
-                            <div class="tournament-content">
-
-                                <span class="past-label">
-                                    Past Tournament
-                                </span>
-
-
-                                <h2>
-                                    <?= htmlspecialchars($tournament['tournament_name']) ?>
-                                </h2>
-
-
-                                <p class="description">
-                                    <?= htmlspecialchars($tournament['tournament_description']) ?>
-                                </p>
-
-
-                                <div class="tournament-info">
-
-                                    <div class="info-row">
-
-                                        <span class="info-icon">📅</span>
-
-                                        <span class="info-label">
-                                            Date:
-                                        </span>
-
-                                        <span class="info-value">
-                                            <?= date("d M Y", strtotime($tournament['tournament_startdate'])) ?>
-                                            -
-                                            <?= date("d M Y", strtotime($tournament['tournament_enddate'])) ?>
-                                        </span>
-
-                                    </div>
-
-
-                                    <div class="info-row">
-
-                                        <span class="info-icon">📍</span>
-
-                                        <span class="info-label">
-                                            Location:
-                                        </span>
-
-                                        <span class="info-value">
-                                            <?= htmlspecialchars($tournament['tournament_location']) ?>
-                                        </span>
-
-                                    </div>
-
-                                </div>
-
-
-                                <a href="tournament_details.php?tournamentID=<?= $tournament['tournamentID'] ?>" class="view-btn">
-                                    View Tournament
-                                </a>
-
-                            </div>
-
-                        </div>
-
-                    <?php endforeach; ?>
-
-                <?php else: ?>
-
-                    <p class="empty-message">
-                        There are no past tournaments.
+                        There are currently no tournaments open for registration.
                     </p>
 
                 <?php endif; ?>
@@ -332,33 +210,45 @@ while ($tournament = mysqli_fetch_assoc($result)) {
     <script>
         document.addEventListener("DOMContentLoaded", function () {
 
-            const tournamentCards = document.querySelectorAll(".tournament-card");
+        const searchInput =
+            document.getElementById("tournamentSearch");
+
+        const tournamentCards =
+            document.querySelectorAll(".tournament-card");
+
+
+        searchInput.addEventListener("input", function () {
+
+            const searchValue =
+                this.value.toLowerCase().trim();
+
 
             tournamentCards.forEach(function (card) {
 
-                card.addEventListener("mouseenter", function () {
-                    card.classList.add("card-hover");
-                });
-
-                card.addEventListener("mouseleave", function () {
-                    card.classList.remove("card-hover");
-                });
-            });
+                const tournamentName =
+                    card.querySelector("h3")
+                        .textContent
+                        .toLowerCase();
 
 
-            const viewButtons = document.querySelectorAll(".view-btn");
+                if (tournamentName.includes(searchValue)) {
 
-            viewButtons.forEach(function (button) {
+                    card.style.display = "block";
 
-                button.addEventListener("click", function () {
-                    button.classList.add("loading");
-                    button.textContent = "Loading...";
-                });
+                } else {
+
+                    card.style.display = "none";
+
+                }
 
             });
 
         });
+
+    });
     </script>
-    
+
+
 </body>
+
 </html>

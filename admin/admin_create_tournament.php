@@ -232,7 +232,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $selected_registration_fields = array_values(
         array_intersect(
             $selected_registration_fields,
-            $registration_options
+            array_keys($registration_options)
         )
     );
 
@@ -564,27 +564,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $conn->commit();
 
 
-                $message =
-                    'Tournament created successfully!';
+                $message = 'Tournament created successfully!';
 
-                /*
-                | Clear form after successful creation
-                */
-
-                $tournament_name = '';
-                $tournament_startdate = '';
-                $tournament_enddate = '';
-                $tournament_deadline = '';
-                $tournament_description = '';
-                $tournament_location = '';
-                $tournament_fee = '';
-                $tournament_type = '';
-                $tournament_age_cutoff = '';
-                $tournament_tshirt_size = '';
-                $tournament_detail_link = '';
-
-                $selected_categories = [];
-                $selected_registration_fields = [];
+                echo "<script>
+                    alert('Tournament created successfully!');
+                    window.location.href = 'index.php';
+                </script>";
+                exit;
 
 
             } catch (Exception $e) {
@@ -644,7 +630,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
      MAIN CONTENT
 ========================================== -->
 
-<main class="container">
+<main class="page-container">
 
     <div class="page-title">
 
@@ -801,7 +787,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 
             <div class="form-row">
-
 
                 <div class="form-group">
 
@@ -978,7 +963,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <?php foreach ($registration_options as $field_name => $field_label): ?>
 
                     <label class="checkbox-item">
-                        <input type="checkbox" name="registration_fields[]" value="<?= htmlspecialchars($field_name) ?>">
+                        <input type="checkbox" name="registration_fields[]" value="<?= htmlspecialchars($field_name) ?>" <?= in_array($field_name, $selected_registration_fields, true) ? 'checked' : '' ?>>
                         <span><?= htmlspecialchars($field_label) ?></span>
                     </label>
 

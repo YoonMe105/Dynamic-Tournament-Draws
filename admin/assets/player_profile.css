@@ -1,0 +1,522 @@
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: Arial, Helvetica, sans-serif;
+    background: #f5f7fa;
+    color: #555;
+}
+
+main {
+    padding: 20px 28px 60px;
+}
+
+
+/* =========================================================
+   PROFILE TITLE
+========================================================= */
+
+.profile-titlebar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    margin-bottom: 25px;
+}
+
+.section-kicker {
+    margin: 0 0 8px;
+
+    color: #10175f;
+
+    font-family: Georgia, serif;
+
+    font-size: 30px;
+    font-weight: bold;
+}
+
+.profile-titlebar div div {
+    color: #888;
+    font-size: 14px;
+}
+
+.profile-titlebar strong {
+    color: #555;
+}
+
+
+/* =========================================================
+   UPDATE MESSAGE
+========================================================= */
+
+.update-message {
+    width: 100%;
+
+    margin-bottom: 20px;
+
+    padding: 12px 18px;
+
+    background: #e8f7e8;
+
+    border: 1px solid #a8d8a8;
+
+    border-radius: 10px;
+
+    color: #287a28;
+
+    font-size: 14px;
+
+    font-weight: bold;
+}
+
+
+/* =========================================================
+   PROFILE IMAGE
+========================================================= */
+
+.profile-image-panel {
+    display: flex;
+    align-items: center;
+    gap: 25px;
+
+    width: 100%;
+
+    padding: 25px 30px;
+
+    margin-bottom: 25px;
+
+    background: white;
+
+    border-radius: 20px;
+}
+
+.profile-large-avatar {
+    width: 130px;
+    height: 130px;
+
+    border-radius: 50%;
+
+    object-fit: cover;
+
+    border: 4px solid #eeeeee;
+}
+
+.profile-image-help {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+
+    color: #888;
+
+    font-size: 13px;
+}
+
+.profile-image-help strong {
+    margin-bottom: 4px;
+
+    color: #10175f;
+
+    font-family: Georgia, serif;
+
+    font-size: 18px;
+}
+
+.image-upload {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    margin-left: auto;
+
+    padding: 10px 25px;
+
+    border-radius: 25px;
+
+    background: #10175f;
+
+    color: white;
+
+    font-size: 14px;
+
+    font-weight: bold;
+
+    cursor: pointer;
+}
+
+.image-upload input {
+    display: none;
+}
+
+
+/* =========================================================
+   DETAILS PANEL
+========================================================= */
+
+.details-panel {
+    width: 100%;
+
+    padding: 28px 32px;
+
+    margin-bottom: 25px;
+
+    background: white;
+
+    border-radius: 20px;
+}
+
+.profile-panel h2 {
+    margin: 0 0 25px;
+
+    color: #10175f;
+
+    font-family: Georgia, serif;
+
+    font-size: 23px;
+}
+
+
+/* =========================================================
+   PROFILE GRID
+========================================================= */
+
+.profile-grid {
+    display: grid;
+
+    grid-template-columns:
+        minmax(0, 1fr)
+        minmax(0, 1fr);
+
+    column-gap: 50px;
+
+    row-gap: 25px;
+
+    width: 100%;
+}
+
+.profile-contact-grid {
+    grid-template-columns:
+        minmax(0, 1fr)
+        minmax(0, 1fr);
+}
+
+
+/* =========================================================
+   PROFILE FIELD
+========================================================= */
+
+.profile-field {
+    min-width: 0;
+
+    display: flex;
+    flex-direction: column;
+
+    gap: 7px;
+}
+
+.profile-field > span {
+    color: #999;
+
+    font-size: 15px;
+}
+
+.profile-field > strong {
+    color: #555;
+
+    font-size: 15px;
+
+    font-weight: bold;
+
+    overflow-wrap: break-word;
+}
+
+
+/* =========================================================
+   EDIT INPUT
+========================================================= */
+
+.profile-input {
+    width: 100%;
+
+    height: 40px;
+
+    padding: 0 12px;
+
+    border: 2px solid #e3e3e3;
+
+    border-radius: 10px;
+
+    outline: none;
+
+    background: white;
+
+    color: #555;
+
+    font-family: Arial, Helvetica, sans-serif;
+
+    font-size: 14px;
+
+    transition: border-color 0.2s ease,
+                box-shadow 0.2s ease;
+}
+
+.profile-input:focus {
+    border-color: #10175f;
+
+    box-shadow: 0 0 0 3px rgba(16, 23, 95, 0.08);
+}
+
+
+/* =========================================================
+   SELECT
+========================================================= */
+
+select.profile-input {
+    cursor: pointer;
+
+    appearance: auto;
+}
+
+
+/* =========================================================
+   DATE INPUT
+========================================================= */
+
+input[type="date"].profile-input {
+    color: #555;
+}
+
+
+/* =========================================================
+   PASSWORD
+========================================================= */
+
+input[type="password"].profile-input {
+    letter-spacing: 1px;
+}
+
+
+/* =========================================================
+   BUTTON AREA
+========================================================= */
+
+.details-bottom-actions {
+    display: flex;
+
+    justify-content: flex-end;
+
+    align-items: center;
+
+    gap: 15px;
+
+    margin-top: 5px;
+}
+
+
+/* =========================================================
+   BUTTON
+========================================================= */
+
+.details-btn {
+    display: inline-flex;
+
+    align-items: center;
+    justify-content: center;
+
+    min-width: 120px;
+
+    height: 42px;
+
+    padding: 0 25px;
+
+    border: none;
+
+    border-radius: 24px;
+
+    background: white;
+
+    color: #10175f;
+
+    border: 2px solid #10175f;
+
+    text-decoration: none;
+
+    font-size: 14px;
+
+    font-weight: bold;
+
+    cursor: pointer;
+
+    transition: 0.2s ease;
+}
+
+.details-btn:hover {
+    background: #10175f;
+
+    color: white;
+}
+
+
+/* =========================================================
+   UPDATE BUTTON
+========================================================= */
+
+.details-btn.update-btn {
+    background: #10175f;
+
+    color: white;
+
+    border: 2px solid #10175f;
+}
+
+.details-btn.update-btn:hover {
+    background: #080d4a;
+
+    border-color: #080d4a;
+}
+
+
+/* =========================================================
+   BACK BUTTON
+========================================================= */
+
+.details-btn:not(.update-btn) {
+    background: white;
+
+    color: #10175f;
+}
+
+.details-btn:not(.update-btn):hover {
+    background: #10175f;
+
+    color: white;
+}
+
+
+/* =========================================================
+   PROFILE FORM
+========================================================= */
+
+#player-form {
+    width: 100%;
+}
+
+
+/* =========================================================
+   RESPONSIVE - TABLET
+========================================================= */
+
+@media (max-width: 900px) {
+
+    main {
+        width: 94%;
+    }
+
+    .profile-grid {
+        grid-template-columns: 1fr;
+
+        column-gap: 0;
+    }
+
+    .profile-contact-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .profile-image-panel {
+        flex-wrap: wrap;
+    }
+
+    .image-upload {
+        margin-left: 0;
+    }
+}
+
+
+/* =========================================================
+   RESPONSIVE - MOBILE
+========================================================= */
+
+@media (max-width: 600px) {
+
+    main {
+        width: 94%;
+
+        margin-top: 20px;
+    }
+
+    .profile-titlebar {
+        flex-direction: column;
+
+        align-items: flex-start;
+
+        gap: 10px;
+    }
+
+    .section-kicker {
+        font-size: 25px;
+    }
+
+    .profile-image-panel {
+        flex-direction: column;
+
+        align-items: flex-start;
+
+        padding: 22px;
+    }
+
+    .profile-large-avatar {
+        width: 110px;
+        height: 110px;
+    }
+
+    .image-upload {
+        width: 100%;
+    }
+
+    .details-panel {
+        padding: 22px;
+    }
+
+    .profile-panel h2 {
+        font-size: 21px;
+    }
+
+    .details-bottom-actions {
+        justify-content: stretch;
+
+        width: 100%;
+    }
+
+    .details-btn {
+        flex: 1;
+
+        min-width: 0;
+    }
+}
+
+
+/* =========================================================
+   SMALL MOBILE
+========================================================= */
+
+@media (max-width: 400px) {
+
+    .details-bottom-actions {
+        flex-direction: column;
+    }
+
+    .details-btn {
+        width: 100%;
+    }
+
+    .profile-large-avatar {
+        width: 95px;
+        height: 95px;
+    }
+
+    .profile-image-help {
+        font-size: 12px;
+    }
+}
