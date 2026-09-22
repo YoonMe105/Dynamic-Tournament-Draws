@@ -883,6 +883,273 @@ $playersResult = $playerStmt->get_result();
 
     </section>
 
+    <!-- ==========================================================
+        SECTION 3: SEEDING AND RANKING
+    =========================================================== -->
+
+    <section class="players-section">
+
+        <div class="section-header">
+
+            <div>
+
+                <h2>
+                    Tournament Seeding
+                </h2>
+
+                <p class="section-subtitle">
+                    Automatic ranking, seeding and admin adjustment
+                </p>
+
+            </div>
+
+        </div>
+
+
+        <!-- ======================================================
+            SEEDING ACTIONS
+        ======================================================= -->
+
+        <div class="seeding-actions">
+
+            <form method="POST" action="admin_seeding.php?id=<?= $tournamentID ?>">
+
+                <input type="hidden" name="action" value="automatic_seeding">
+
+                <button type="submit" class="btn">
+                    Automatic Seeding
+                </button>
+
+            </form>
+
+
+            <a href="admin_seeding.php?id=<?= $tournamentID ?>" class="btn manage-seeding">
+                Manage Seeding
+            </a>
+
+        </div>
+
+
+        <!-- ======================================================
+            SEEDING TABLE
+        ======================================================= -->
+
+        <?php
+
+        $seedStmt = $conn->prepare("
+            SELECT
+                tr.registrationID,
+                tr.category_registered,
+                tr.seed_number,
+                tr.endorsement,
+                tr.payment_status,
+
+                p.playerID,
+                p.player_full_name,
+                p.player_nationality,
+                p.world_ranking,
+                p.national_ranking,
+                p.ajss_ranking
+
+            FROM tournament_register tr
+
+            JOIN players p
+                ON tr.playerID = p.playerID
+
+            WHERE tr.tournamentID = ?
+
+            ORDER BY
+                tr.category_registered ASC,
+                CASE
+                    WHEN tr.seed_number IS NULL THEN 999999
+                    ELSE tr.seed_number
+                END ASC,
+                p.player_full_name ASC
+        ");
+
+        $seedStmt->bind_param("i", $tournamentID);
+
+        $seedStmt->execute();
+
+        $seedResult = $seedStmt->get_result();
+
+        ?>
+
+
+        <?php if ($seedResult->num_rows > 0): ?>
+
+            <div class="table-wrapper">
+
+                <table class="players-table">
+
+                    <thead>
+
+                        <tr>
+
+                            <th>No.</th>
+
+                            <th>Player</th>
+
+                            <th>Category</th>
+
+                            <th>World Ranking</th>
+
+                            <th>National Ranking</th>
+
+                            <th>AJSS Ranking</th>
+
+                            <th>Seed</th>
+
+                            <th>Status</th>
+
+                        </tr>
+
+                    </thead>
+
+
+                    <tbody>
+
+                        <?php
+
+                        $seedNo = 1;
+
+                        while ($seedPlayer = $seedResult->fetch_assoc()):
+
+                        ?>
+
+                            <tr>
+
+                                <td>
+                                    <?= $seedNo++ ?>
+                                </td>
+
+
+                                <td>
+
+                                    <div class="player-name">
+
+                                        <?= htmlspecialchars(
+                                            $seedPlayer['player_full_name']
+                                        ) ?>
+
+                                    </div>
+
+                                </td>
+
+
+                                <td>
+
+                                    <span class="category-badge">
+
+                                        <?= htmlspecialchars(
+                                            $seedPlayer['category_registered']
+                                        ) ?>
+
+                                    </span>
+
+                                </td>
+
+
+                                <td>
+
+                                    <?= !empty($seedPlayer['world_ranking'])
+                                        ? htmlspecialchars($seedPlayer['world_ranking'])
+                                        : '-' ?>
+
+                                </td>
+
+
+                                <td>
+
+                                    <?= !empty($seedPlayer['national_ranking'])
+                                        ? htmlspecialchars($seedPlayer['national_ranking'])
+                                        : '-' ?>
+
+                                </td>
+
+
+                                <td>
+
+                                    <?= !empty($seedPlayer['ajss_ranking'])
+                                        ? htmlspecialchars($seedPlayer['ajss_ranking'])
+                                        : '-' ?>
+
+                                </td>
+
+
+                                <td>
+
+                                    <?php if ($seedPlayer['seed_number'] !== null): ?>
+
+                                        <strong>
+                                            <?= (int)$seedPlayer['seed_number'] ?>
+                                        </strong>
+
+                                    <?php else: ?>
+
+                                        -
+
+                                    <?php endif; ?>
+
+                                </td>
+
+
+                                <td>
+
+                                    <?php if (
+                                        strtoupper(trim($seedPlayer['endorsement'] ?? ''))
+                                        === 'ENDORSED'
+                                    ): ?>
+
+                                        <span class="status-badge">
+                                            ENDORSED
+                                        </span>
+
+                                    <?php else: ?>
+
+                                        <span class="status-badge">
+                                            PENDING
+                                        </span>
+
+                                    <?php endif; ?>
+
+                                </td>
+
+                            </tr>
+
+                        <?php endwhile; ?>
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        <?php else: ?>
+
+            <div class="no-players">
+
+                <div class="no-players-icon">
+                    👤
+                </div>
+
+                <h3>
+                    No Players Available
+                </h3>
+
+                <p>
+                    There are currently no registered players for seeding.
+                </p>
+
+            </div>
+
+        <?php endif; ?>
+
+
+        <?php $seedStmt->close(); ?>
+
+    </section>
+
 
 </main>
 
