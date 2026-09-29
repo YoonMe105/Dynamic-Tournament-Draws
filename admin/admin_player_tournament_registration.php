@@ -33,14 +33,21 @@ $sql = "
         tr.payment_status,
         tr.admin_remark,
         tr.endorsement,
+        tr.amount_paid,
+        tr.payment_date,
+        tr.payment_proof,
+        tr.player_attachments,
 
         p.playerID,
         p.player_first_name,
         p.player_last_name,
+        p.player_dob,
+        p.player_nationality,
 
         t.tournament_name,
         t.tournament_fee,
-        t.tournament_deadline
+        t.tournament_deadline,
+        t.tournament_age_cutoff
 
     FROM tournament_register tr
 
@@ -126,6 +133,16 @@ $registrationFee = !empty($registration['tournament_fee'])
     ? $registration['tournament_fee']
     : "-";
 
+// International tournaments ("Local: RM120.00, Foreign: USD 60.00"):
+// Malaysian players pay the Local fee, foreign players the Foreign fee
+require_once "../fees.php";
+
+$playerFee = feeForPlayer($registration['tournament_fee'] ?? '', $registration['player_nationality'] ?? '');
+
+if ($playerFee['label'] !== '') {
+    $registrationFee = $playerFee['fee'] . " (" . strtolower($playerFee['label']) . " player)";
+}
+
 
 /*
 |--------------------------------------------------------------------------
@@ -144,9 +161,10 @@ $status = !empty($registration['endorsement'])
 |--------------------------------------------------------------------------
 */
 
+// Saved in capitals (PAID, NOT PAID); older rows may be in any case
 $paymentStatus = !empty($registration['payment_status'])
-    ? $registration['payment_status']
-    : "Not Paid";
+    ? strtoupper(trim($registration['payment_status']))
+    : "NOT PAID";
 
 
 /*
@@ -158,6 +176,70 @@ $paymentStatus = !empty($registration['payment_status'])
 $category = !empty($registration['category_registered'])
     ? $registration['category_registered']
     : "";
+
+
+/*
+|--------------------------------------------------------------------------
+| Wrong Age Category
+|--------------------------------------------------------------------------
+| null when the category fits the player's age on the cut-off date, or
+| when the tournament has no cut-off date.
+*/
+
+require_once "admin_age_check.php";
+
+$wrongCategory = wrongAgeCategory(
+    $category,
+    $registration['player_dob'],
+    $registration['tournament_age_cutoff']
+);
+
+$cutoffText = !empty($registration['tournament_age_cutoff'])
+    ? date("d/m/Y", strtotime($registration['tournament_age_cutoff']))
+    : "";
+
+
+/*
+|--------------------------------------------------------------------------
+| Category Options
+|--------------------------------------------------------------------------
+| Only the categories saved for this tournament (BU13, GU11, Men, ...).
+| Long names like "Boys Under 13 Open Championship" are shown as codes,
+| the same codes players register with. The current value is always kept.
+*/
+
+$categoryOptions = [];
+
+$categoryStmt = $conn->prepare("
+    SELECT category_name
+    FROM tournament_category
+    WHERE tournamentID = ?
+");
+
+$categoryStmt->bind_param("i", $registration['tournamentID']);
+$categoryStmt->execute();
+
+$categoryResult = $categoryStmt->get_result();
+
+while ($categoryRow = $categoryResult->fetch_assoc()) {
+
+    $categoryOption = trim($categoryRow['category_name']);
+
+    if (preg_match('/\b(boys?|girls?)\b.*?\bunder\s*(\d+)/i', $categoryOption, $matches)) {
+        $categoryOption = (strtolower($matches[1][0]) === 'b' ? 'B' : 'G')
+            . 'U' . str_pad($matches[2], 2, '0', STR_PAD_LEFT);
+    }
+
+    if (!in_array($categoryOption, $categoryOptions, true)) {
+        $categoryOptions[] = $categoryOption;
+    }
+}
+
+$categoryStmt->close();
+
+if ($category !== "" && !in_array($category, $categoryOptions, true)) {
+    $categoryOptions[] = $category;
+}
 
 
 /*
@@ -322,6 +404,33 @@ $remarks = !empty($registration['admin_remark'])
             line-height: 1.35;
         }
 
+        .attachment-list {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 22px;
+            text-align: left;
+        }
+
+        .attachment-item label {
+            display: block;
+            font-size: 15px;
+            color: #999;
+            margin-bottom: 4px;
+        }
+
+        .attachment-item a {
+            color: #10175f;
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        .attachment-meta {
+            margin-top: 4px;
+            color: #555;
+            font-size: 14px;
+        }
+
         .action-buttons {
             display: flex;
             justify-content: flex-end;
@@ -401,6 +510,18 @@ $remarks = !empty($registration['admin_remark'])
             color: #555;
             font-size: 14px;
             font-weight: bold;
+        }
+
+        .wrong-category-message {
+            background-color: #fdf0ee;
+            color: #c0392b;
+            border: 1px solid #f3b8b1;
+            border-left: 5px solid #c0392b;
+            padding: 12px 18px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-weight: bold;
+            line-height: 1.5;
         }
 
         .success-message {
@@ -483,6 +604,40 @@ $remarks = !empty($registration['admin_remark'])
 
 
     <!-- =====================================================
+         WRONG AGE CATEGORY
+    ====================================================== -->
+
+    <?php if ($wrongCategory !== null): ?>
+
+        <?php
+        // Youngest category in this tournament that fits the player's age
+        $wrongCategoryText = wrongCategoryMessage(
+            $playerFullName,
+            $category,
+            correctAgeCategory($category, $wrongCategory['age'], $categoryOptions),
+            $wrongCategory['age']
+        );
+        ?>
+
+        <div class="wrong-category-message" role="alert">
+
+            &#9888; <?php echo htmlspecialchars($wrongCategoryText); ?>
+
+        </div>
+
+        <script>
+            window.addEventListener('load', function () {
+                alert(<?php echo json_encode(
+                    "Wrong category!\n\n" . $wrongCategoryText
+                    . "\n\nAge cut-off date: " . $cutoffText
+                ); ?>);
+            });
+        </script>
+
+    <?php endif; ?>
+
+
+    <!-- =====================================================
          PAGE HEADER
     ====================================================== -->
 
@@ -502,17 +657,6 @@ $remarks = !empty($registration['admin_remark'])
                 class="header-btn">
 
                 View Profile
-
-            </a>
-
-
-            <!-- View Registration Form -->
-
-            <a
-                href="admin_view_registration_form.php?id=<?php echo $registrationID; ?>"
-                class="header-btn primary">
-
-                View Form
 
             </a>
 
@@ -694,24 +838,32 @@ $remarks = !empty($registration['admin_remark'])
                         id="payment_status">
 
                         <option
-                            value="Not Paid"
-                            <?php echo ($paymentStatus === "Not Paid") ? "selected" : ""; ?>>
+                            value="NOT PAID"
+                            <?php echo ($paymentStatus === "NOT PAID") ? "selected" : ""; ?>>
 
                             Not Paid
 
                         </option>
 
                         <option
-                            value="Paid"
-                            <?php echo ($paymentStatus === "Paid") ? "selected" : ""; ?>>
+                            value="PENDING"
+                            <?php echo ($paymentStatus === "PENDING") ? "selected" : ""; ?>>
+
+                            Pending
+
+                        </option>
+
+                        <option
+                            value="PAID"
+                            <?php echo ($paymentStatus === "PAID") ? "selected" : ""; ?>>
 
                             Paid
 
                         </option>
 
                         <option
-                            value="Refunded"
-                            <?php echo ($paymentStatus === "Refunded") ? "selected" : ""; ?>>
+                            value="REFUNDED"
+                            <?php echo ($paymentStatus === "REFUNDED") ? "selected" : ""; ?>>
 
                             Refunded
 
@@ -731,12 +883,58 @@ $remarks = !empty($registration['admin_remark'])
 
             <div class="attachments">
 
-                <div class="no-attachment">
+                <?php if (empty($registration['payment_proof']) && empty($registration['player_attachments'])): ?>
 
-                    There are no attachments
-                    given by player.
+                    <div class="no-attachment">
 
-                </div>
+                        There are no attachments
+                        given by player.
+
+                    </div>
+
+                <?php else: ?>
+
+                    <div class="attachment-list">
+
+                        <?php if (!empty($registration['payment_proof'])): ?>
+
+                            <div class="attachment-item">
+
+                                <label>Payment Receipt</label>
+
+                                <a href="../uploads/payments/<?php echo rawurlencode($registration['payment_proof']); ?>" target="_blank">
+                                    View Receipt
+                                </a>
+
+                                <div class="attachment-meta">
+                                    <?php echo htmlspecialchars($registration['amount_paid'] ?? '-'); ?>
+                                    <?php if (!empty($registration['payment_date'])): ?>
+                                        &middot;
+                                        <?php echo date("d/m/Y (h:ia)", strtotime($registration['payment_date'])); ?>
+                                    <?php endif; ?>
+                                </div>
+
+                            </div>
+
+                        <?php endif; ?>
+
+                        <?php if (!empty($registration['player_attachments'])): ?>
+
+                            <div class="attachment-item">
+
+                                <label>Player Attachment</label>
+
+                                <a href="../uploads/registrations/<?php echo rawurlencode($registration['player_attachments']); ?>" target="_blank">
+                                    View Attachment
+                                </a>
+
+                            </div>
+
+                        <?php endif; ?>
+
+                    </div>
+
+                <?php endif; ?>
 
             </div>
 
@@ -836,53 +1034,17 @@ $remarks = !empty($registration['admin_remark'])
                         class="status-select"
                         id="category_registered">
 
-                        <option
-                            value="BU13"
-                            <?php echo ($category === "BU13") ? "selected" : ""; ?>>
+                        <?php foreach ($categoryOptions as $categoryOption): ?>
 
-                            BU13
+                            <option
+                                value="<?php echo htmlspecialchars($categoryOption); ?>"
+                                <?php echo ($category === $categoryOption) ? "selected" : ""; ?>>
 
-                        </option>
+                                <?php echo htmlspecialchars($categoryOption); ?>
 
-                        <option
-                            value="BU15"
-                            <?php echo ($category === "BU15") ? "selected" : ""; ?>>
+                            </option>
 
-                            BU15
-
-                        </option>
-
-                        <option
-                            value="BU17"
-                            <?php echo ($category === "BU17") ? "selected" : ""; ?>>
-
-                            BU17
-
-                        </option>
-
-                        <option
-                            value="BU19"
-                            <?php echo ($category === "BU19") ? "selected" : ""; ?>>
-
-                            BU19
-
-                        </option>
-
-                        <option
-                            value="BU23"
-                            <?php echo ($category === "BU23") ? "selected" : ""; ?>>
-
-                            BU23
-
-                        </option>
-
-                        <option
-                            value="OPEN"
-                            <?php echo ($category === "OPEN") ? "selected" : ""; ?>>
-
-                            OPEN
-
-                        </option>
+                        <?php endforeach; ?>
 
                     </select>
 

@@ -9,216 +9,282 @@ if (!isset($_SESSION["role"]) || $_SESSION["role"] !== "admin") {
 
 
 /* =========================
-   FEATURED TOURNAMENTS
+   LOAD TOURNAMENTS
 ========================= */
 
-$featured_query = "SELECT tournamentid, tournament_name, tournament_type, tournament_startdate, tournament_enddate, tournament_deadline, tournament_picture
-                   FROM tournament
-                   WHERE DATE(tournament_deadline) >= CURDATE()
-                   ORDER BY tournament_startdate ASC
-                   LIMIT 3";
+$tournaments_query = "SELECT
+                          t.tournamentid,
+                          t.tournament_name,
+                          t.tournament_type,
+                          t.tournament_location,
+                          t.tournament_country,
+                          t.tournament_startdate,
+                          t.tournament_enddate,
+                          t.tournament_deadline,
+                          t.tournament_picture,
+                          COUNT(tr.registrationID) AS registered_count
+                      FROM tournament t
+                      LEFT JOIN tournament_register tr
+                          ON tr.tournamentID = t.tournamentID
+                      GROUP BY t.tournamentID
+                      ORDER BY t.tournament_startdate ASC";
 
+$tournaments_result = $conn->query($tournaments_query);
 
-/* =========================
-   ALL TOURNAMENTS
-========================= */
-
-$all_tournaments_query = "SELECT tournamentid, tournament_name, tournament_type, tournament_startdate, tournament_enddate, tournament_deadline, tournament_picture
-                          FROM tournament
-                          ORDER BY
-                              CASE
-                                  WHEN tournament_enddate >= CURDATE() THEN 0
-                                  ELSE 1
-                              END ASC,
-                              tournament_startdate ASC";
-
-
-/* =========================
-   ONGOING TOURNAMENTS
-========================= */
-
-$ongoing_query = "SELECT tournamentid, tournament_name, tournament_type, tournament_startdate, tournament_enddate, tournament_deadline, tournament_picture
-                  FROM tournament
-                  WHERE tournament_startdate <= CURDATE()
-                  AND tournament_enddate >= CURDATE()
-                  ORDER BY tournament_startdate ASC
-                  LIMIT 3";
-
-
-/* =========================
-   UPCOMING TOURNAMENTS
-========================= */
-
-$upcoming_query = "SELECT tournamentid, tournament_name, tournament_type, tournament_startdate, tournament_enddate, tournament_deadline, tournament_picture
-                   FROM tournament
-                   WHERE tournament_startdate > CURDATE()
-                   ORDER BY tournament_startdate ASC
-                   LIMIT 3";
-
-
-/* =========================
-   PAST TOURNAMENTS
-========================= */
-
-$past_query = "SELECT tournamentid, tournament_name, tournament_type, tournament_startdate, tournament_enddate, tournament_deadline, tournament_picture
-               FROM tournament
-               WHERE tournament_enddate < CURDATE()
-               ORDER BY tournament_enddate DESC
-               LIMIT 6";
-
-
-/* =========================
-   RUN QUERIES
-========================= */
-
-$featured_result = $conn->query($featured_query);
-$all_tournaments_result = $conn->query($all_tournaments_query);
-$ongoing_result = $conn->query($ongoing_query);
-$upcoming_result = $conn->query($upcoming_query);
-$past_result = $conn->query($past_query);
-
-
-if (
-    !$featured_result ||
-    !$all_tournaments_result ||
-    !$ongoing_result ||
-    !$upcoming_result ||
-    !$past_result
-) {
+if (!$tournaments_result) {
     die("Could not load tournaments: " . $conn->error);
 }
 
 
 /* =========================
-   FEATURED CARD
+   SORT INTO SECTIONS
+   - Registration open: deadline not passed yet
+   - Current: started and not finished, or registration closed but not started yet
+   - Previous: already finished
 ========================= */
-function featured_card($tournament) {
 
-    $picture = !empty($tournament['tournament_picture'])
-        ? htmlspecialchars($tournament['tournament_picture'])
-        : '../images/default-tournament.jpg';
+$open_tournaments = [];
+$current_tournaments = [];
+$previous_tournaments = [];
 
-    ?>
+$now = time();
 
-    <a class="featured-card"
-       href="admin_view_tournaments.php?id=<?= (int)$tournament['tournamentid'] ?>">
+while ($tournament = $tournaments_result->fetch_assoc()) {
 
-        <div class="featured-type">
-            Type: <?= htmlspecialchars($tournament['tournament_type']) ?>
-        </div>
+    $start = tournament_time($tournament['tournament_startdate']);
+    $end = tournament_time($tournament['tournament_enddate']);
+    $deadline = tournament_time($tournament['tournament_deadline']);
 
-        <div class="featured-image">
+    if ($deadline !== null && $deadline >= $now) {
 
-            <img
-                src="<?= $picture ?>"
-                alt="<?= htmlspecialchars($tournament['tournament_name']) ?>"
-            >
+        // Calendar days until the deadline (0 = today)
+        $tournament['days_left'] = (int)round(
+            (strtotime(date('Y-m-d', $deadline)) - strtotime(date('Y-m-d', $now))) / 86400
+        );
+        $open_tournaments[] = $tournament;
 
-        </div>
+    } elseif ($end !== null && $end >= $now) {
 
-        <div class="featured-content">
+        $tournament['is_ongoing'] = $start !== null && $start <= $now;
+        $current_tournaments[] = $tournament;
 
-            <h3>
-                <?= htmlspecialchars($tournament['tournament_name']) ?>
-            </h3>
+    } else {
 
-            <p class="deadline-title">
-                Registration Deadline
-            </p>
+        $previous_tournaments[] = $tournament;
 
-            <p class="deadline-date">
+    }
+}
 
-                <?= !empty($tournament['tournament_deadline'])
-                    ? date('Y-m-d H:i:s', strtotime($tournament['tournament_deadline']))
-                    : 'Not specified'
-                ?>
+// Closest deadline first
+usort($open_tournaments, function ($a, $b) {
+    return strcmp($a['tournament_deadline'], $b['tournament_deadline']);
+});
 
-            </p>
+// Happening now first, then the ones starting soonest
+usort($current_tournaments, function ($a, $b) {
+    if ($a['is_ongoing'] !== $b['is_ongoing']) {
+        return $a['is_ongoing'] ? -1 : 1;
+    }
+    return strcmp($a['tournament_startdate'], $b['tournament_startdate']);
+});
 
-        </div>
+// Most recent first
+$previous_tournaments = array_reverse($previous_tournaments);
 
-    </a>
+// Previous tournaments shown before "Show all"
+$previous_limit = 6;
 
-    <?php
+
+/* =========================
+   HELPERS
+========================= */
+
+// Timestamp of a date, or null when it's empty / 0000-00-00
+function tournament_time($value) {
+
+    if (empty($value) || strpos($value, '0000-00-00') === 0) {
+        return null;
+    }
+
+    $time = strtotime($value);
+
+    return $time === false ? null : $time;
+}
+
+
+// New uploads store a file name; older tournaments store a path
+function tournament_picture($tournament) {
+
+    $picture = trim($tournament['tournament_picture'] ?? '');
+
+    if ($picture === '' || strtoupper($picture) === 'NULL') {
+        return './assets/tournament.jpg';
+    }
+
+    $path = strpos($picture, '../') === 0 ? $picture : '../uploads/tournaments/' . $picture;
+
+    return file_exists(__DIR__ . '/' . $path) ? $path : './assets/tournament.jpg';
+}
+
+
+// "05 Oct - 09 Oct 2026"
+function tournament_dates($tournament) {
+
+    $start = tournament_time($tournament['tournament_startdate']);
+    $end = tournament_time($tournament['tournament_enddate']);
+
+    if ($start === null) {
+        return 'Dates not set';
+    }
+
+    if ($end === null || date('Y-m-d', $start) === date('Y-m-d', $end)) {
+        return date('d M Y', $start);
+    }
+
+    if (date('Y', $start) === date('Y', $end)) {
+        return date('d M', $start) . ' - ' . date('d M Y', $end);
+    }
+
+    return date('d M Y', $start) . ' - ' . date('d M Y', $end);
+}
+
+
+function tournament_place($tournament) {
+
+    $parts = array_filter([
+        trim($tournament['tournament_location'] ?? ''),
+        trim($tournament['tournament_country'] ?? '')
+    ]);
+
+    return implode(', ', $parts);
 }
 
 
 /* =========================
-   LARGE TOURNAMENT CARD
+   REGISTRATION OPEN CARD
 ========================= */
 
-function tournament_card($tournament, $status = null, $show_registration = false) {
+function open_card($tournament) {
 
-    $picture = !empty($tournament['tournament_picture'])
-        ? htmlspecialchars($tournament['tournament_picture'])
-        : '../images/default-tournament.jpg';
+    $id = (int)$tournament['tournamentid'];
+    $days = $tournament['days_left'];
+
+    if ($days <= 0) {
+        $closing = 'Closes today';
+    } elseif ($days === 1) {
+        $closing = 'Closes tomorrow';
+    } else {
+        $closing = 'Closes in ' . $days . ' days';
+    }
+
     ?>
 
-    <article class="large-tournament-card">
+    <article class="open-card">
 
-        <div class="large-image">
+        <div class="open-image">
 
-            <img src="<?= $picture ?>" alt="<?= htmlspecialchars($tournament['tournament_name']) ?>">
+            <img
+                src="<?= htmlspecialchars(tournament_picture($tournament)) ?>"
+                alt="<?= htmlspecialchars($tournament['tournament_name']) ?>"
+            >
+
+            <span class="type-badge">
+                <?= htmlspecialchars(strtoupper($tournament['tournament_type'])) ?>
+            </span>
+
+            <span class="closing-badge <?= $days <= 3 ? 'urgent' : '' ?>">
+                <?= $closing ?>
+            </span>
 
         </div>
 
+        <div class="open-content">
 
-        <div class="large-info">
+            <h3><?= htmlspecialchars($tournament['tournament_name']) ?></h3>
 
-            <?php if ($status): ?>
+            <ul class="open-meta">
 
-                <span class="tournament-status">
-                    <?= htmlspecialchars($status) ?>
-                </span>
+                <li>
+                    <span>Tournament</span>
+                    <strong><?= htmlspecialchars(tournament_dates($tournament)) ?></strong>
+                </li>
 
-            <?php endif; ?>
+                <li>
+                    <span>Deadline</span>
+                    <strong><?= date('d M Y, h:i A', strtotime($tournament['tournament_deadline'])) ?></strong>
+                </li>
 
+                <li>
+                    <span>Registered</span>
+                    <strong><?= (int)$tournament['registered_count'] ?> player<?= (int)$tournament['registered_count'] === 1 ? '' : 's' ?></strong>
+                </li>
 
-            <h2>
-                <?= htmlspecialchars($tournament['tournament_name']) ?>
-            </h2>
+            </ul>
 
+            <div class="open-actions">
 
-            <p class="large-type">
-                <?= htmlspecialchars($tournament['tournament_type']) ?> Event
-            </p>
-
-
-            <p class="tournament-date">
-
-                <?= date('d F Y', strtotime($tournament['tournament_startdate'])) ?>
-
-                <?php if (!empty($tournament['tournament_enddate'])): ?>
-
-                    - <?= date('d F Y', strtotime($tournament['tournament_enddate'])) ?>
-
-                <?php endif; ?>
-
-            </p>
-
-
-            <div class="large-actions">
-
-                <a class="details-btn"
-                   href="admin_view_tournaments.php?id=<?= (int)$tournament['tournamentid'] ?>">
-                    View Details
+                <a class="btn-primary" href="admin_each_tournament.php?id=<?= $id ?>">
+                    Registrations
                 </a>
 
-
-                <?php if ($show_registration): ?>
-
-                    <a class="details-btn registration-btn"
-                       href="admin_each_tournament.php?id=<?= (int)$tournament['tournamentid'] ?>&action=register">
-                        View Registration
-                    </a>
-
-                <?php endif; ?>
+                <a class="btn-outline" href="admin_view_tournaments.php?id=<?= $id ?>">
+                    Details
+                </a>
 
             </div>
 
         </div>
 
     </article>
+
+    <?php
+}
+
+
+/* =========================
+   CURRENT / PREVIOUS ROW
+========================= */
+
+function list_item($tournament, $badge, $badge_class, $hidden = false) {
+
+    $id = (int)$tournament['tournamentid'];
+    $place = tournament_place($tournament);
+
+    ?>
+
+    <a
+        class="list-item <?= $hidden ? 'extra-item' : '' ?>"
+        href="admin_each_tournament.php?id=<?= $id ?>"
+        <?= $hidden ? 'hidden' : '' ?>
+    >
+
+        <img
+            class="list-thumb"
+            src="<?= htmlspecialchars(tournament_picture($tournament)) ?>"
+            alt=""
+        >
+
+        <div class="list-info">
+
+            <h4><?= htmlspecialchars($tournament['tournament_name']) ?></h4>
+
+            <p>
+                <?= htmlspecialchars(tournament_dates($tournament)) ?>
+                <?php if ($place !== ''): ?>
+                    &middot; <?= htmlspecialchars($place) ?>
+                <?php endif; ?>
+            </p>
+
+            <p class="list-sub">
+                <?= htmlspecialchars(strtoupper($tournament['tournament_type'])) ?>
+                &middot; <?= (int)$tournament['registered_count'] ?> registered
+            </p>
+
+        </div>
+
+        <span class="status-badge <?= $badge_class ?>"><?= $badge ?></span>
+
+    </a>
 
     <?php
 }
@@ -237,8 +303,7 @@ function tournament_card($tournament, $status = null, $show_registration = false
     <title>Tournaments</title>
 
     <link href="./assets/style.css" rel="stylesheet" type="text/css">
-    <link href="./assets/index.css" rel="stylesheet" type="text/css">
-
+    <link href="./assets/index.css?v=<?= filemtime(__DIR__ . '/assets/index.css') ?>" rel="stylesheet" type="text/css">
 
 </head>
 
@@ -253,19 +318,11 @@ function tournament_card($tournament, $status = null, $show_registration = false
 
         <div class="page-header">
 
-            <div>
-
-                <h1>Tournaments</h1>
-
-            </div>
-
+            <h1>Tournaments</h1>
 
             <a class="add-new-btn" href="admin_create_tournament.php">
-
                 <span>＋</span>
-
                 Add New
-
             </a>
 
         </div>
@@ -281,7 +338,7 @@ function tournament_card($tournament, $status = null, $show_registration = false
             <input
                 id="tournament-search"
                 type="search"
-                placeholder="Search..."
+                placeholder="Search tournaments..."
                 autocomplete="off"
             >
 
@@ -292,286 +349,208 @@ function tournament_card($tournament, $status = null, $show_registration = false
 
 
         <!-- =========================
-            FEATURED TOURNAMENTS
+            ROW 1: REGISTRATION OPEN
         ========================== -->
 
-        <section class="featured-section">
+        <section class="panel">
 
-            <div class="featured-list">
+            <div class="panel-header">
 
-                <?php if ($featured_result->num_rows): ?>
+                <h2>
+                    <span class="dot dot-open"></span>
+                    Registration Open
+                </h2>
 
-                    <?php while ($tournament = $featured_result->fetch_assoc()): ?>
-
-                        <?php featured_card($tournament); ?>
-
-                    <?php endwhile; ?>
-
-                <?php else: ?>
-
-                    <p class="no-tournaments">
-                        No tournaments available.
-                    </p>
-
-                <?php endif; ?>
+                <span class="panel-count"><?= count($open_tournaments) ?></span>
 
             </div>
+
+            <?php if ($open_tournaments): ?>
+
+                <div class="open-grid">
+
+                    <?php foreach ($open_tournaments as $tournament): ?>
+                        <?php open_card($tournament); ?>
+                    <?php endforeach; ?>
+
+                </div>
+
+            <?php else: ?>
+
+                <p class="no-tournaments">No tournaments are open for registration.</p>
+
+            <?php endif; ?>
+
+            <p class="no-tournaments search-empty" hidden>No matching tournaments.</p>
 
         </section>
 
 
 
         <!-- =========================
-            ALL TOURNAMENTS
+            ROW 2: CURRENT | PREVIOUS
         ========================== -->
 
-        <section class="large-section">
+        <div class="two-columns">
 
-            <div class="section-title">
 
-                <h2>All Tournaments</h2>
+            <!-- Current -->
 
-            </div>
+            <section class="panel">
 
+                <div class="panel-header">
 
-            <div class="large-tournament-list">
+                    <h2>
+                        <span class="dot dot-current"></span>
+                        Current Tournaments
+                    </h2>
 
+                    <span class="panel-count"><?= count($current_tournaments) ?></span>
 
-                <?php if ($all_tournaments_result->num_rows): ?>
+                </div>
 
+                <div class="list">
 
-                    <?php while ($tournament = $all_tournaments_result->fetch_assoc()): ?>
+                    <?php if ($current_tournaments): ?>
 
+                        <?php foreach ($current_tournaments as $tournament): ?>
 
-                        <?php
+                            <?php if ($tournament['is_ongoing']): ?>
+                                <?php list_item($tournament, 'Ongoing', 'badge-ongoing'); ?>
+                            <?php else: ?>
+                                <?php list_item($tournament, 'Upcoming', 'badge-upcoming'); ?>
+                            <?php endif; ?>
 
-                        $today = date('Y-m-d');
-
-                        $start_date = date(
-                            'Y-m-d',
-                            strtotime($tournament['tournament_startdate'])
-                        );
-
-                        $end_date = date(
-                            'Y-m-d',
-                            strtotime($tournament['tournament_enddate'])
-                        );
-
-
-                        /* Determine tournament status */
-
-                        if (
-                            $start_date <= $today &&
-                            $end_date >= $today
-                        ) {
-
-                            $status = 'ONGOING';
-
-                        } elseif ($start_date > $today) {
-
-                            $status = 'UPCOMING';
-
-                        } else {
-
-                            $status = 'PAST';
-
-                        }
-
-                        ?>
-
-
-                        <?php tournament_card(
-                            $tournament,
-                            $status,
-                            $status !== 'PAST'
-                        ); ?>
-
-
-                    <?php endwhile; ?>
-
-
-                <?php else: ?>
-
-
-                    <p class="no-tournaments">
-
-                        No tournaments available.
-
-                    </p>
-
-
-                <?php endif; ?>
-
-
-            </div>
-
-        </section>
-
-
-
-        <!-- =========================
-            CURRENT / ONGOING
-        ========================== -->
-
-        <section class="large-section">
-
-            <div class="section-title">
-
-                <h2>Current Tournaments</h2>
-
-            </div>
-
-
-            <div class="large-tournament-list">
-
-
-                <?php if ($ongoing_result->num_rows): ?>
-
-
-                    <?php while ($tournament = $ongoing_result->fetch_assoc()): ?>
-
-
-                        <?php tournament_card(
-                            $tournament,
-                            'ONGOING',
-                            true
-                        ); ?>
-
-
-                    <?php endwhile; ?>
-
-
-                <?php else: ?>
-
-
-                    <?php if ($upcoming_result->num_rows): ?>
-
-
-                        <?php
-
-                        $upcoming_result->data_seek(0);
-
-                        while ($tournament = $upcoming_result->fetch_assoc()):
-
-                        ?>
-
-
-                            <?php tournament_card(
-                                $tournament,
-                                'UPCOMING',
-                                true
-                            ); ?>
-
-
-                        <?php endwhile; ?>
-
+                        <?php endforeach; ?>
 
                     <?php else: ?>
 
-
-                        <p class="no-tournaments">
-
-                            No current tournaments available.
-
-                        </p>
-
+                        <p class="no-tournaments">No tournaments are being held right now.</p>
 
                     <?php endif; ?>
 
+                    <p class="no-tournaments search-empty" hidden>No matching tournaments.</p>
+
+                </div>
+
+            </section>
+
+
+            <!-- Previous -->
+
+            <section class="panel">
+
+                <div class="panel-header">
+
+                    <h2>
+                        <span class="dot dot-previous"></span>
+                        Previous Tournaments
+                    </h2>
+
+                    <span class="panel-count"><?= count($previous_tournaments) ?></span>
+
+                </div>
+
+                <div class="list">
+
+                    <?php if ($previous_tournaments): ?>
+
+                        <?php foreach ($previous_tournaments as $index => $tournament): ?>
+                            <?php list_item($tournament, 'Finished', 'badge-finished', $index >= $previous_limit); ?>
+                        <?php endforeach; ?>
+
+                    <?php else: ?>
+
+                        <p class="no-tournaments">No previous tournaments.</p>
+
+                    <?php endif; ?>
+
+                    <p class="no-tournaments search-empty" hidden>No matching tournaments.</p>
+
+                </div>
+
+                <?php if (count($previous_tournaments) > $previous_limit): ?>
+
+                    <button type="button" class="show-all-btn" id="showAllPrevious">
+                        Show all (<?= count($previous_tournaments) ?>)
+                    </button>
 
                 <?php endif; ?>
 
+            </section>
 
-            </div>
-
-        </section>
-
-
-
-        <!-- =========================
-            PAST TOURNAMENTS
-        ========================== -->
-
-        <section class="large-section past-section">
-
-            <div class="section-title">
-
-                <h2>Past Tournaments</h2>
-
-            </div>
-
-
-            <div class="large-tournament-list">
-
-
-                <?php if ($past_result->num_rows): ?>
-
-
-                    <?php while ($tournament = $past_result->fetch_assoc()): ?>
-
-
-                        <?php tournament_card(
-                            $tournament,
-                            'PAST',
-                            false
-                        ); ?>
-
-
-                    <?php endwhile; ?>
-
-
-                <?php else: ?>
-
-
-                    <p class="no-tournaments">
-
-                        No past tournaments available.
-
-                    </p>
-
-
-                <?php endif; ?>
-
-
-            </div>
-
-        </section>
-
+        </div>
 
     </main>
 
 
 
-<script>
+    <script>
 
-const searchInput = document.getElementById('tournament-search');
+    (function () {
 
+        const searchInput = document.getElementById('tournament-search');
+        const showAllBtn = document.getElementById('showAllPrevious');
 
-searchInput?.addEventListener('input', function () {
-
-    const searchTerm = this.value.toLowerCase().trim();
-
-
-    const cards = document.querySelectorAll(
-        '.featured-card, .large-tournament-card'
-    );
+        let showAll = false;
 
 
-    cards.forEach(function (card) {
+        function refresh() {
 
-        const text = card.textContent.toLowerCase();
+            const term = searchInput.value.toLowerCase().trim();
+
+            document.querySelectorAll('.panel').forEach(function (panel) {
+
+                const cards = panel.querySelectorAll('.open-card, .list-item');
+                let visible = 0;
+
+                cards.forEach(function (card) {
+
+                    const matches = card.textContent.toLowerCase().includes(term);
+
+                    // Older previous tournaments stay hidden until "Show all" (or a search)
+                    const collapsed = card.classList.contains('extra-item') && !showAll && term === '';
+
+                    card.hidden = !matches || collapsed;
+
+                    if (!card.hidden) {
+                        visible++;
+                    }
+                });
+
+                const empty = panel.querySelector('.search-empty');
+
+                if (empty) {
+                    empty.hidden = !(cards.length && visible === 0);
+                }
+            });
+
+            if (showAllBtn) {
+                showAllBtn.hidden = term !== '';
+            }
+        }
 
 
-        card.style.display =
-            text.includes(searchTerm)
-                ? ''
-                : 'none';
+        searchInput.addEventListener('input', refresh);
 
-    });
 
-});
+        if (showAllBtn) {
 
-</script>
+            showAllBtn.addEventListener('click', function () {
+
+                showAll = !showAll;
+
+                this.textContent = showAll
+                    ? 'Show less'
+                    : 'Show all (<?= count($previous_tournaments) ?>)';
+
+                refresh();
+            });
+        }
+
+    })();
+
+    </script>
 
 
 </body>

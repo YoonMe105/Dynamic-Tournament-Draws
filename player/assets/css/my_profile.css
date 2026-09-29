@@ -1,0 +1,199 @@
+/* =========================================================
+   My Profile
+   (builds on tournament_details.css)
+========================================================= */
+
+.profile-container {
+    max-width: 900px;
+}
+
+.profile-heading {
+    font-size: 38px;
+    font-weight: 700;
+    color: #101d63;
+    margin-bottom: 22px;
+}
+
+.profile-section,
+.profile-header {
+    margin-bottom: 22px;
+}
+
+
+/* ================= HEADER ================= */
+
+.profile-header {
+    display: flex;
+    align-items: center;
+    gap: 28px;
+}
+
+.avatar-wrapper {
+    position: relative;
+    flex-shrink: 0;
+}
+
+.avatar {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid #111b68;
+    background: #e9edf2;
+    display: block;
+}
+
+.avatar-btn {
+    position: absolute;
+    right: 0;
+    bottom: 4px;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 3px solid #fff;
+
+    background: #101d63;
+    color: #fff;
+
+    cursor: pointer;
+    transition: 0.2s ease;
+}
+
+.avatar-btn:hover {
+    background: #17246b;
+}
+
+.profile-identity {
+    min-width: 0;
+}
+
+.profile-identity h2 {
+    font-size: 26px;
+    color: #101d63;
+    margin-bottom: 8px;
+    overflow-wrap: anywhere;
+}
+
+.identity-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 18px;
+
+    font-size: 14px;
+    color: #7d89a5;
+}
+
+.identity-meta i {
+    color: #263b70;
+    margin-right: 4px;
+}
+
+
+/* ================= FORM ================= */
+
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0 22px;
+}
+
+.form-grid.three {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.form-group input[type="email"],
+.form-group input[type="tel"],
+.form-group input[type="date"],
+.form-group input[type="password"] {
+    width: 100%;
+
+    padding: 11px 14px;
+
+    border: 1px solid #d4dbea;
+    border-radius: 10px;
+
+    background: #fff;
+    color: #222;
+
+    font-family: inherit;
+    font-size: 15px;
+
+    outline: none;
+    transition: 0.2s ease;
+}
+
+.profile-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 22px;
+}
+
+.profile-section .profile-actions {
+    margin-bottom: 0;
+}
+
+.profile-actions .primary-btn,
+.profile-actions .secondary-btn {
+    width: auto;
+    padding: 0 32px;
+    margin-top: 0;
+}
+
+
+/* =========================================================
+   Responsive
+========================================================= */
+
+@media (max-width: 800px) {
+
+    .form-grid.three {
+        grid-template-columns: 1fr;
+    }
+
+}
+
+@media (max-width: 650px) {
+
+    .profile-heading {
+        font-size: 30px;
+    }
+
+    .profile-header {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .identity-meta {
+        justify-content: center;
+    }
+
+    .form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .profile-actions .primary-btn,
+    .profile-actions .secondary-btn {
+        width: 100%;
+    }
+
+}
+
+
+/* ================= READ-ONLY (rankings) ================= */
+
+.form-group input.readonly-input {
+    background: #f5f7fb;
+    color: #555;
+    cursor: not-allowed;
+}
+
+.form-group input.readonly-input:focus {
+    border-color: #d4dbea;
+    box-shadow: none;
+}

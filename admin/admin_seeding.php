@@ -48,6 +48,65 @@ if (!$tournament) {
 
 /*
 |--------------------------------------------------------------------------
+| SEEDING RULE
+|--------------------------------------------------------------------------
+| Which rankings decide the seeds depends on where the tournament is held
+| and its type. The first ranking is the primary one; the next ones are
+| only used to order players with the same (or no) primary ranking.
+|
+|   Malaysia  + Local          -> National, then AJSS
+|   Malaysia  + International  -> AJSS, then National
+|   Singapore / other country  -> National
+*/
+
+$rankingColumns = [
+    'world_ranking' => '(PSA) World ranking',
+    'national_ranking' => 'National ranking',
+    'ajss_ranking' => 'AJSS ranking'
+];
+
+$seedCountry = strtolower(trim($tournament['tournament_country'] ?? ''));
+$seedType = strtolower(trim($tournament['tournament_type'] ?? ''));
+
+// "international" also contains "national", so check it first
+if (strpos($seedType, 'international') !== false) {
+    $seedType = 'international';
+} elseif (strpos($seedType, 'local') !== false) {
+    $seedType = 'local';
+}
+
+if ($seedCountry === 'malaysia' && $seedType === 'local') {
+
+    $seedingOrder = ['national_ranking', 'ajss_ranking'];
+
+} elseif ($seedCountry === 'malaysia' && $seedType === 'international') {
+
+    $seedingOrder = ['ajss_ranking', 'national_ranking'];
+
+} else {
+
+    $seedingOrder = ['national_ranking'];
+}
+
+$seedingRuleText = implode(', then ', array_map(function ($column) use ($rankingColumns) {
+    return $rankingColumns[$column];
+}, $seedingOrder));
+
+/*
+| ORDER BY for the rule: numeric rankings first (lowest = best),
+| missing or non-numeric rankings last.
+*/
+
+$seedingOrderSQL = implode(",\n", array_map(function ($column) {
+    return "CASE
+                WHEN p.$column REGEXP '^[0-9]+$'
+                THEN CAST(p.$column AS UNSIGNED)
+                ELSE 999999
+            END ASC";
+}, $seedingOrder));
+
+/*
+|--------------------------------------------------------------------------
 | AUTOMATIC SEEDING
 |--------------------------------------------------------------------------
 */
@@ -57,6 +116,21 @@ if (
     && isset($_POST['action'])
     && $_POST['action'] === 'automatic_seeding'
 ) {
+
+    /*
+    |--------------------------------------------------------------------------
+    | CATEGORY
+    |--------------------------------------------------------------------------
+    | Only the chosen category is reseeded, so seeds in other categories
+    | (including manual changes) are kept.
+    */
+
+    $seedCategory = trim($_POST['category'] ?? '');
+
+    if ($seedCategory === '') {
+        header("Location: admin_seeding.php?id=" . $tournamentID);
+        exit;
+    }
 
     /*
     |--------------------------------------------------------------------------
@@ -75,28 +149,14 @@ if (
         JOIN players p
             ON tr.playerID = p.playerID
         WHERE tr.tournamentID = ?
+        AND tr.category_registered = ?
         AND UPPER(TRIM(tr.endorsement)) = 'ENDORSED'
         ORDER BY
-            tr.category_registered ASC,
-            CASE
-                WHEN p.world_ranking REGEXP '^[0-9]+$'
-                THEN CAST(p.world_ranking AS UNSIGNED)
-                ELSE 999999
-            END ASC,
-            CASE
-                WHEN p.national_ranking REGEXP '^[0-9]+$'
-                THEN CAST(p.national_ranking AS UNSIGNED)
-                ELSE 999999
-            END ASC,
-            CASE
-                WHEN p.ajss_ranking REGEXP '^[0-9]+$'
-                THEN CAST(p.ajss_ranking AS UNSIGNED)
-                ELSE 999999
-            END ASC,
+            $seedingOrderSQL,
             tr.registrationID ASC
     ");
 
-    $seedStmt->bind_param("i", $tournamentID);
+    $seedStmt->bind_param("is", $tournamentID, $seedCategory);
     $seedStmt->execute();
 
     $seedResult = $seedStmt->get_result();
@@ -111,9 +171,10 @@ if (
         UPDATE tournament_register
         SET seed_number = NULL
         WHERE tournamentID = ?
+        AND category_registered = ?
     ");
 
-    $resetStmt->bind_param("i", $tournamentID);
+    $resetStmt->bind_param("is", $tournamentID, $seedCategory);
     $resetStmt->execute();
 
     $resetStmt->close();
@@ -131,21 +192,11 @@ if (
         AND tournamentID = ?
     ");
 
-    $currentCategory = '';
     $seedNumber = 0;
 
     while ($player = $seedResult->fetch_assoc()) {
 
-        if ($currentCategory !== $player['category_registered']) {
-
-            $currentCategory = $player['category_registered'];
-            $seedNumber = 1;
-
-        } else {
-
-            $seedNumber++;
-
-        }
+        $seedNumber++;
 
         $registrationID = intval($player['registrationID']);
 
@@ -165,6 +216,7 @@ if (
     header(
         "Location: admin_seeding.php?id="
         . $tournamentID
+        . "&category=" . urlencode($seedCategory)
         . "&message=automatic"
     );
 
@@ -257,6 +309,7 @@ if (
     header(
         "Location: admin_seeding.php?id="
         . $tournamentID
+        . "&category=" . urlencode(trim($_POST['category'] ?? ''))
         . "&message=saved"
     );
 
@@ -311,7 +364,9 @@ $categoryStmt->close();
 $firstCategory = '';
 
 if (!empty($categories)) {
-    $firstCategory = $categories[0];
+    $firstCategory = in_array($_GET['category'] ?? '', $categories, true)
+        ? $_GET['category']
+        : $categories[0];
 }
 
 /*
@@ -351,6 +406,7 @@ $playerStmt->execute();
 $playersResult = $playerStmt->get_result();
 
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 
@@ -368,7 +424,6 @@ $playersResult = $playerStmt->get_result();
     <link rel="stylesheet" href="assets/style.css">
 
     <link rel="stylesheet" href="assets/each_tournament.css">
-
     <link rel="stylesheet" href="assets/admin_seeding.css">
 
 </head>
@@ -394,6 +449,16 @@ $playersResult = $playerStmt->get_result();
 
                 <p>
                     <?= htmlspecialchars($tournament['tournament_name']) ?>
+                </p>
+
+                <p class="seeding-rule">
+                    Automatic seeding uses:
+                    <strong><?= htmlspecialchars($seedingRuleText) ?></strong>
+                    <?php if (empty($tournament['tournament_country'])): ?>
+                        <span class="seeding-rule-note">
+                            (no country set for this tournament &ndash; set it on the tournament page to apply the country rules)
+                        </span>
+                    <?php endif; ?>
                 </p>
 
             </div>
@@ -448,6 +513,13 @@ $playersResult = $playerStmt->get_result();
                     type="hidden"
                     name="action"
                     value="automatic_seeding"
+                >
+
+                <input
+                    type="hidden"
+                    name="category"
+                    class="selected-category-input"
+                    value="<?= htmlspecialchars($firstCategory) ?>"
                 >
 
                 <button
@@ -523,6 +595,13 @@ $playersResult = $playerStmt->get_result();
                 value="save_seeding"
             >
 
+            <input
+                type="hidden"
+                name="category"
+                class="selected-category-input"
+                value="<?= htmlspecialchars($firstCategory) ?>"
+            >
+
 
             <!-- ======================================================
                 TABLE
@@ -548,7 +627,7 @@ $playersResult = $playerStmt->get_result();
 
                             <th>National Ranking</th>
 
-                            <th>AJSS Ranking</th>
+                            <th>Regional Ranking(AJSS)</th>
 
                             <th>Seed</th>
 
@@ -769,8 +848,12 @@ $playersResult = $playerStmt->get_result();
 
 function confirmSeeding() {
 
+    const categorySelect = document.getElementById('categorySelect');
+
+    const category = categorySelect ? categorySelect.value : '';
+
     return confirm(
-        "Generate automatic seeding? Existing seed numbers will be replaced."
+        "Generate automatic seeding for " + category + "? Existing seed numbers in this category will be replaced."
     );
 
 }
@@ -793,6 +876,10 @@ function filterCategory() {
     }
 
     const selectedCategory = categorySelect.value;
+
+    document.querySelectorAll('.selected-category-input').forEach(function(input) {
+        input.value = selectedCategory;
+    });
 
     const rows = document.querySelectorAll(
         '.players-table tbody tr[data-category]'

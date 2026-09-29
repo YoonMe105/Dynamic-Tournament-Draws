@@ -345,3 +345,25 @@ padding: 20px 28px 60px;
     }
 
 }
+
+
+/* =========================================================
+   Seeding Rule
+========================================================= */
+
+.page-header p.seeding-rule {
+    margin-top: 8px;
+    font-size: 14px;
+    color: #555;
+}
+
+.seeding-rule strong {
+    color: #993D86;
+}
+
+.seeding-rule-note {
+    display: block;
+    margin-top: 4px;
+    font-size: 13px;
+    color: #b45309;
+}

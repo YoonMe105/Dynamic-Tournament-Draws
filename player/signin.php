@@ -10,7 +10,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $lastname = trim($_POST["lastname"] ?? "");
     $email = trim($_POST["email"] ?? "");
     $dob = $_POST["dob"] ?? "";
-    $nationality = $_POST["nationality"] ?? "";
+    $nationality = strtoupper(trim($_POST["nationality"] ?? ""));
     $password = $_POST["password"] ?? "";
     $confirm_password = $_POST["confirm_password"] ?? "";
 
@@ -96,7 +96,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sign In</title>
-    <link href="./assets/css/signin.css" rel="stylesheet" type="text/css">
+    <link href="./assets/css/signin.css?v=<?= filemtime(__DIR__ . '/assets/css/signin.css') ?>" rel="stylesheet" type="text/css">
 </head>
 <body>
 
@@ -136,33 +136,33 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     <label for="nationality">Nationality</label>
                     <select id="nationality" name="nationality" required>
                         <option value="">Select nationality</option>
-                        <option value="Afghan">Afghan</option>
-                        <option value="Albanian">Albanian</option>
-                        <option value="Algerian">Algerian</option>
-                        <option value="American">American</option>
-                        <option value="Australian">Australian</option>
-                        <option value="Bangladeshi">Bangladeshi</option>
-                        <option value="British">British</option>
-                        <option value="Bruneian">Bruneian</option>
-                        <option value="Cambodian">Cambodian</option>
-                        <option value="Canadian">Canadian</option>
-                        <option value="Chinese">Chinese</option>
-                        <option value="Filipino">Filipino</option>
-                        <option value="French">French</option>
-                        <option value="German">German</option>
-                        <option value="Indian">Indian</option>
-                        <option value="Indonesian">Indonesian</option>
-                        <option value="Japanese">Japanese</option>
-                        <option value="Korean">Korean</option>
-                        <option value="Malaysian">Malaysian</option>
-                        <option value="Myanmar">Myanmar</option>
-                        <option value="Nepalese">Nepalese</option>
-                        <option value="New Zealander">New Zealander</option>
-                        <option value="Pakistani">Pakistani</option>
-                        <option value="Singaporean">Singaporean</option>
-                        <option value="Sri Lankan">Sri Lankan</option>
-                        <option value="Thai">Thai</option>
-                        <option value="Vietnamese">Vietnamese</option>
+                        <option value="AFGHAN">AFGHAN</option>
+                        <option value="ALBANIAN">ALBANIAN</option>
+                        <option value="ALGERIAN">ALGERIAN</option>
+                        <option value="AMERICAN">AMERICAN</option>
+                        <option value="AUSTRALIAN">AUSTRALIAN</option>
+                        <option value="BANGLADESHI">BANGLADESHI</option>
+                        <option value="BRITISH">BRITISH</option>
+                        <option value="BRUNEIAN">BRUNEIAN</option>
+                        <option value="CAMBODIAN">CAMBODIAN</option>
+                        <option value="CANADIAN">CANADIAN</option>
+                        <option value="CHINESE">CHINESE</option>
+                        <option value="FILIPINO">FILIPINO</option>
+                        <option value="FRENCH">FRENCH</option>
+                        <option value="GERMAN">GERMAN</option>
+                        <option value="INDIAN">INDIAN</option>
+                        <option value="INDONESIAN">INDONESIAN</option>
+                        <option value="JAPANESE">JAPANESE</option>
+                        <option value="KOREAN">KOREAN</option>
+                        <option value="MALAYSIAN">MALAYSIAN</option>
+                        <option value="MYANMAR">MYANMAR</option>
+                        <option value="NEPALESE">NEPALESE</option>
+                        <option value="NEW ZEALANDER">NEW ZEALANDER</option>
+                        <option value="PAKISTANI">PAKISTANI</option>
+                        <option value="SINGAPOREAN">SINGAPOREAN</option>
+                        <option value="SRI LANKAN">SRI LANKAN</option>
+                        <option value="THAI">THAI</option>
+                        <option value="VIETNAMESE">VIETNAMESE</option>
                     </select>
                 </div>
 

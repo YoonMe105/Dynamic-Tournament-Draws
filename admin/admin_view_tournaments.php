@@ -3,6 +3,10 @@ session_start();
 
 require '../db.php';
 
+require_once 'admin_countries.php';
+
+require_once '../fees.php';
+
 if (!isset($_SESSION["userid"]) || !isset($_SESSION["role"]) || $_SESSION["role"] !== "admin") {
     header("Location: ../login.php");
     exit;
@@ -124,6 +128,58 @@ $all_categories = [
 
 /*
 |--------------------------------------------------------------------------
+| PSA Categories
+|--------------------------------------------------------------------------
+| A tournament is either Junior (the categories above) or PSA (Men/Women).
+*/
+
+$psa_categories = [
+    'MEN' => [
+        'name' => 'Men',
+        'age' => 0,
+        'gender' => 'Men'
+    ],
+    'WOMEN' => [
+        'name' => 'Women',
+        'age' => 0,
+        'gender' => 'Women'
+    ]
+];
+
+
+/*
+|--------------------------------------------------------------------------
+| Saved Category Type
+|--------------------------------------------------------------------------
+| PSA if the tournament has Men/Women categories, Junior if it has other
+| categories, and '' if it has no categories yet. Once a tournament has a
+| type it can't be changed on this page.
+*/
+
+function getSavedCategoryType($conn, $tournamentID, $psa_categories)
+{
+    $stmt = $conn->prepare("
+        SELECT category_name
+        FROM tournament_category
+        WHERE tournamentID = ?
+    ");
+    $stmt->bind_param("i", $tournamentID);
+    $stmt->execute();
+
+    $names = array_column($stmt->get_result()->fetch_all(MYSQLI_ASSOC), 'category_name');
+
+    $stmt->close();
+
+    if (array_intersect(array_column($psa_categories, 'name'), $names)) {
+        return 'PSA';
+    }
+
+    return empty($names) ? '' : 'Junior';
+}
+
+
+/*
+|--------------------------------------------------------------------------
 | Get Tournament
 |--------------------------------------------------------------------------
 */
@@ -171,13 +227,50 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_changes'])) {
 
     $tournament_type = trim($_POST['tournament_type']);
     $tournament_location = trim($_POST['tournament_location']);
+
+    $tournament_country = trim($_POST['tournament_country'] ?? '');
+
+    if (!in_array($tournament_country, $tournament_countries, true)) {
+        $tournament_country = null;
+    }
     $tournament_fee = trim($_POST['tournament_fee']);
+
+    // International: RM only, USD only, or both
+    // (both are saved as "Local: RM120.00, Foreign: USD 60.00")
+    $tournament_fee_usd = trim($_POST['tournament_fee_usd'] ?? '');
+
+    if (stripos($tournament_type, 'international') !== false) {
+        $tournament_fee = combineFeeFields($tournament_fee, $tournament_fee_usd);
+    }
     $tournament_tshirt_size = trim($_POST['tournament_tshirt_size']);
     $tournament_detail_link = trim($_POST['tournament_detail_link']);
 
-    $selected_categories = isset($_POST['categories'])
+    $category_type = getSavedCategoryType($conn, $tournamentID, $psa_categories);
+
+    // No type yet: use the one the admin picked
+    if ($category_type === '') {
+        $category_type = in_array($_POST['category_type'] ?? '', ['Junior', 'PSA'], true)
+            ? $_POST['category_type']
+            : '';
+    }
+
+    $type_categories = [];
+
+    if ($category_type === 'Junior') {
+        $type_categories = $all_categories;
+    } elseif ($category_type === 'PSA') {
+        $type_categories = $psa_categories;
+    }
+
+    $selected_categories = isset($_POST['categories']) && is_array($_POST['categories'])
         ? $_POST['categories']
         : [];
+
+    // Only keep categories that belong to the chosen type
+    $selected_categories = array_values(array_intersect(
+        array_column($type_categories, 'name'),
+        $selected_categories
+    ));
 
     $selected_registration_fields = isset($_POST['registration_fields'])
         ? $_POST['registration_fields']
@@ -219,6 +312,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_changes'])) {
                           tournament_age_cutoff = ?,
                           tournament_type = ?,
                           tournament_location = ?,
+                          tournament_country = ?,
                           tournament_fee = ?,
                           tournament_tshirt_size = ?,
                           tournament_detail_link = ?,
@@ -228,7 +322,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_changes'])) {
         $updateStmt = $conn->prepare($updateSQL);
 
         $updateStmt->bind_param(
-            "ssssssssssssi",
+            "sssssssssssssi",
             $tournament_name,
             $tournament_description,
             $tournament_startdate,
@@ -237,6 +331,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_changes'])) {
             $tournament_age_cutoff,
             $tournament_type,
             $tournament_location,
+            $tournament_country,
             $tournament_fee,
             $tournament_tshirt_size,
             $tournament_detail_link,
@@ -283,17 +378,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_changes'])) {
         if (!empty($selected_categories)) {
 
             $insertCategorySQL = "INSERT INTO tournament_category
-                                  (tournamentID, category_name)
-                                  VALUES (?, ?)";
+                                  (tournamentID, category_name, age, gender)
+                                  VALUES (?, ?, ?, ?)";
 
             $insertCategoryStmt = $conn->prepare($insertCategorySQL);
 
+            $categories_by_name = array_column($type_categories, null, 'name');
+
             foreach ($selected_categories as $category_name) {
 
+                $category_age = $categories_by_name[$category_name]['age'];
+                $category_gender = $categories_by_name[$category_name]['gender'];
+
                 $insertCategoryStmt->bind_param(
-                    "is",
+                    "isis",
                     $tournamentID,
-                    $category_name
+                    $category_name,
+                    $category_age,
+                    $category_gender
                 );
 
                 if (!$insertCategoryStmt->execute()) {
@@ -306,22 +408,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_changes'])) {
 
             $insertCategoryStmt->close();
         }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | Commit
-        |--------------------------------------------------------------------------
-        */
-
         $conn->commit();
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | Redirect
-        |--------------------------------------------------------------------------
-        */
 
         header(
             "Location: admin_view_tournaments.php?id=" .
@@ -392,6 +479,20 @@ if ($tournament) {
 
     $categoryStmt->close();
 }
+
+
+/*
+|--------------------------------------------------------------------------
+| Category Type
+|--------------------------------------------------------------------------
+*/
+
+$category_type = $tournament
+    ? getSavedCategoryType($conn, $tournamentID, $psa_categories)
+    : '';
+
+// The type can only be chosen while the tournament has no categories
+$category_type_locked = $category_type !== '';
 
 
 /*
@@ -692,10 +793,19 @@ if ($tournament && !empty($tournament['registration_field'])) {
 
                                 <input
                                     type="text"
+                                    id="tournament_type"
                                     name="tournament_type"
                                     value="<?= htmlspecialchars($tournament['tournament_type']) ?>"
+                                    list="tournament_type_options"
+                                    oninput="toggleUsdFee()"
                                     required
                                 >
+
+                                <datalist id="tournament_type_options">
+                                    <option value="Local">
+                                    <option value="International">
+                                    <option value="National">
+                                </datalist>
 
                             <?php else: ?>
 
@@ -740,20 +850,81 @@ if ($tournament && !empty($tournament['registration_field'])) {
 
                         <div class="form-group">
 
-                            <label>Tournament Fee</label>
+                            <label>Country</label>
+
+                            <?php if ($edit_mode): ?>
+
+                                <select name="tournament_country" class="styled-select" required>
+
+                                    <option value="">Select country</option>
+
+                                    <?php foreach ($tournament_countries as $country): ?>
+
+                                        <option
+                                            value="<?= htmlspecialchars($country) ?>"
+                                            <?= ($tournament['tournament_country'] ?? '') === $country ? 'selected' : '' ?>
+                                        >
+                                            <?= htmlspecialchars($country) ?>
+                                        </option>
+
+                                    <?php endforeach; ?>
+
+                                </select>
+
+                            <?php else: ?>
+
+                                <div class="view-value">
+                                    <?= htmlspecialchars($tournament['tournament_country'] ?: '-') ?>
+                                </div>
+
+                            <?php endif; ?>
+
+                        </div>
+
+
+                    </div>
+
+
+                    <?php
+                    // International: RM fee -> RM field, USD fee -> USD field
+                    // (a USD-only fee goes in the USD field).
+                    // Other tournaments keep the whole fee text in the RM field.
+                    if (stripos($tournament['tournament_type'] ?? '', 'international') !== false) {
+                        $fields = feeFields($tournament['tournament_fee'] ?? '');
+                        $feeParts = ['local' => $fields['rm'], 'foreign' => $fields['usd'], 'details' => $fields['details']];
+                    } else {
+                        $feeParts = ['local' => $tournament['tournament_fee'] ?? '', 'foreign' => null, 'details' => null];
+                    }
+                    ?>
+
+                    <div class="form-row">
+
+
+                        <div class="form-group">
+
+                            <label>Entry Fee (RM)</label>
 
                             <?php if ($edit_mode): ?>
 
                                 <input
                                     type="text"
                                     name="tournament_fee"
-                                    value="<?= htmlspecialchars($tournament['tournament_fee']) ?>"
+                                    value="<?= htmlspecialchars($feeParts['local']) ?>"
                                 >
+
+                                <?php if ($feeParts['details'] !== null): ?>
+
+                                    <small class="locked-note">
+                                        Currently saved as: &ldquo;<?= htmlspecialchars($feeParts['details']) ?>&rdquo;.
+                                        Saving will keep only the RM and USD amounts.
+                                    </small>
+
+                                <?php endif; ?>
 
                             <?php else: ?>
 
                                 <div class="view-value">
-                                    <?= htmlspecialchars($tournament['tournament_fee']) ?>
+                                    <?= htmlspecialchars($feeParts['local'] !== '' ? $feeParts['local'] : '-') ?>
                                 </div>
 
                             <?php endif; ?>
@@ -795,6 +966,49 @@ if ($tournament && !empty($tournament['registration_field'])) {
 
 
                     </div>
+
+
+                    <!-- USD fee: international tournaments only -->
+
+                    <?php $isInternational = stripos($tournament['tournament_type'] ?? '', 'international') !== false; ?>
+
+                    <?php if ($edit_mode || $isInternational): ?>
+
+                        <div class="form-row usd-fee-row" <?= $isInternational ? '' : 'hidden' ?>>
+
+                            <div class="form-group">
+
+                                <label>Entry Fee (USD)</label>
+
+                                <?php if ($edit_mode): ?>
+
+                                    <input
+                                        type="text"
+                                        id="tournament_fee_usd"
+                                        name="tournament_fee_usd"
+                                        value="<?= htmlspecialchars($feeParts['foreign'] ?? '') ?>"
+                                        placeholder="e.g. USD 60.00"
+                                        <?= $isInternational ? '' : 'disabled' ?>
+                                    >
+
+                                    <small class="locked-note">
+                                        Fill in the RM fee, the USD fee, or both. With both, Malaysian players
+                                        pay RM and foreign players pay USD (saved as &ldquo;Local: RM120.00, Foreign: USD 60.00&rdquo;).
+                                    </small>
+
+                                <?php else: ?>
+
+                                    <div class="view-value">
+                                        <?= htmlspecialchars(($feeParts['foreign'] ?? '') !== '' ? $feeParts['foreign'] : '-') ?>
+                                    </div>
+
+                                <?php endif; ?>
+
+                            </div>
+
+                        </div>
+
+                    <?php endif; ?>
 
 
                     <div class="form-group">
@@ -871,67 +1085,148 @@ if ($tournament && !empty($tournament['registration_field'])) {
                     </p>
 
 
-                    <div class="checkbox-grid">
+                    <!-- CATEGORY TYPE -->
 
+                    <div class="form-group category-type-group">
 
-                        <?php foreach ($all_categories as $category_code => $category): ?>
+                        <label for="category_type">Category Type</label>
 
+                        <?php if ($edit_mode && $category_type_locked): ?>
 
-                            <?php
+                            <div class="view-value locked-value">
+                                <?= htmlspecialchars($category_type) ?>
+                            </div>
 
-                            $is_selected = in_array(
-                                $category['name'],
-                                $selected_categories,
-                                true
-                            );
+                            <small class="locked-note">
+                                The category type can't be changed once it is set.
+                            </small>
 
-                            ?>
+                        <?php elseif ($edit_mode): ?>
 
+                            <select id="category_type" name="category_type" class="styled-select" onchange="showCategoryType()" required>
 
-                            <?php if ($edit_mode): ?>
+                                <option value="">Select category type</option>
 
+                                <option value="Junior" <?= $category_type === 'Junior' ? 'selected' : '' ?>>
+                                    Junior
+                                </option>
 
-                                <label class="checkbox-item">
+                                <option value="PSA" <?= $category_type === 'PSA' ? 'selected' : '' ?>>
+                                    PSA
+                                </option>
 
-                                    <input
-                                        type="checkbox"
-                                        name="categories[]"
-                                        value="<?= htmlspecialchars($category['name']) ?>"
-                                        <?= $is_selected ? 'checked' : '' ?>
-                                    >
+                            </select>
 
-                                    <span>
-                                        <?= htmlspecialchars($category['name']) ?>
-                                    </span>
+                        <?php else: ?>
 
-                                </label>
+                            <div class="view-value">
+                                <?= htmlspecialchars($category_type ?: '-') ?>
+                            </div>
 
-
-                            <?php else: ?>
-
-
-                                <label class="checkbox-item <?= $is_selected ? '' : 'unselected' ?>">
-
-                                    <input
-                                        type="checkbox"
-                                        disabled
-                                        <?= $is_selected ? 'checked' : '' ?>
-                                    >
-
-                                    <span>
-                                        <?= htmlspecialchars($category['name']) ?>
-                                    </span>
-
-                                </label>
-
-
-                            <?php endif; ?>
-
-
-                        <?php endforeach; ?>
-
+                        <?php endif; ?>
 
                     </div>
+
+
+                    <?php
+
+                    $category_groups = [
+                        'Junior' => $all_categories,
+                        'PSA' => $psa_categories
+                    ];
+
+                    ?>
+
+
+                    <?php if ($edit_mode): ?>
+
+                        <p class="category-hint" <?= $category_type_locked ? 'hidden' : '' ?>>
+                            Choose a category type to see its categories.
+                        </p>
+
+                    <?php endif; ?>
+
+
+                    <?php foreach ($category_groups as $group_type => $group_categories): ?>
+
+
+                        <?php
+                        // Once the type is set, only that type's categories are shown
+                        if ((!$edit_mode || $category_type_locked) && $group_type !== $category_type) {
+                            continue;
+                        }
+                        ?>
+
+
+                        <div
+                            class="checkbox-grid category-group"
+                            data-category-type="<?= $group_type ?>"
+                            <?= $group_type !== $category_type ? 'hidden' : '' ?>
+                        >
+
+
+                            <?php foreach ($group_categories as $category_code => $category): ?>
+
+
+                                <?php
+
+                                $is_selected = in_array(
+                                    $category['name'],
+                                    $selected_categories,
+                                    true
+                                );
+
+                                ?>
+
+
+                                <?php if ($edit_mode): ?>
+
+
+                                    <label class="checkbox-item">
+
+                                        <input
+                                            type="checkbox"
+                                            name="categories[]"
+                                            value="<?= htmlspecialchars($category['name']) ?>"
+                                            <?= $is_selected ? 'checked' : '' ?>
+                                            <?= $group_type !== $category_type ? 'disabled' : '' ?>
+                                        >
+
+                                        <span>
+                                            <?= htmlspecialchars($category['name']) ?>
+                                        </span>
+
+                                    </label>
+
+
+                                <?php else: ?>
+
+
+                                    <label class="checkbox-item <?= $is_selected ? '' : 'unselected' ?>">
+
+                                        <input
+                                            type="checkbox"
+                                            disabled
+                                            <?= $is_selected ? 'checked' : '' ?>
+                                        >
+
+                                        <span>
+                                            <?= htmlspecialchars($category['name']) ?>
+                                        </span>
+
+                                    </label>
+
+
+                                <?php endif; ?>
+
+
+                            <?php endforeach; ?>
+
+
+                        </div>
+
+
+                    <?php endforeach; ?>
 
                 </section>
 
@@ -1094,6 +1389,71 @@ if ($tournament && !empty($tournament['registration_field'])) {
 
 
     </main>
+
+    <script>
+        /*
+        |--------------------------------------------------------------------------
+        | Category Type
+        |--------------------------------------------------------------------------
+        | Show the Junior (BU/GU) or PSA (Men/Women) categories. Checkboxes of
+        | the hidden type are disabled so they are not submitted.
+        */
+
+        /*
+        |--------------------------------------------------------------------------
+        | USD Fee
+        |--------------------------------------------------------------------------
+        | Only international tournaments have a USD fee.
+        */
+
+        function toggleUsdFee() {
+
+            const typeInput = document.getElementById('tournament_type');
+            const row = document.querySelector('.usd-fee-row');
+            const input = document.getElementById('tournament_fee_usd');
+
+            if (!typeInput || !row || !input) {
+                return;
+            }
+
+            const isInternational = typeInput.value.toLowerCase().includes('international');
+
+            row.hidden = !isInternational;
+            input.disabled = !isInternational;
+
+            // International: RM only, USD only or both
+            input.required = false;
+        }
+
+
+        function showCategoryType() {
+
+            const typeSelect = document.getElementById('category_type');
+
+            if (!typeSelect) {
+                return;
+            }
+
+            const hint = document.querySelector('.category-hint');
+
+        if (hint) {
+            hint.hidden = typeSelect.value !== '';
+        }
+
+        document.querySelectorAll('.category-group').forEach(function (group) {
+
+                const isActive = group.dataset.categoryType === typeSelect.value;
+
+                group.hidden = !isActive;
+
+                group.querySelectorAll('input[type="checkbox"]').forEach(function (checkbox) {
+                    checkbox.disabled = !isActive;
+                });
+
+            });
+
+        }
+    </script>
 
 </body>
 </html>

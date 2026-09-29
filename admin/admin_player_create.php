@@ -14,7 +14,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $player_passport = trim($_POST['player_passport'] ?? '');
     $player_dob = trim($_POST['player_dob'] ?? '');
     $player_gender = trim($_POST['player_gender'] ?? '');
-    $player_nationality = trim($_POST['player_nationality'] ?? '');
+    $player_nationality = strtoupper(trim($_POST['player_nationality'] ?? ''));
     $asf_member_no = trim($_POST['asf_member_no'] ?? '');
     $spin_number = trim($_POST['spin_number'] ?? '');
     $national_ranking = trim($_POST['national_ranking'] ?? '');

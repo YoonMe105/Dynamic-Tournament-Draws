@@ -42,7 +42,7 @@ $status = isset($_POST['status'])
     : '';
 
 $payment_status = isset($_POST['payment_status'])
-    ? trim($_POST['payment_status'])
+    ? strtoupper(trim($_POST['payment_status']))
     : '';
 
 $remarks = isset($_POST['remarks'])
@@ -81,8 +81,10 @@ if (!in_array($status, $allowedStatuses, true)) {
 
 
 $allowedPaymentStatuses = [
-    "Not Paid",
-    "Paid"
+    "NOT PAID",
+    "PENDING",
+    "PAID",
+    "REFUNDED"
 ];
 
 

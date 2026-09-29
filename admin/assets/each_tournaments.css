@@ -82,35 +82,263 @@ body {
    TOURNAMENT DETAILS
 ========================================================= */
 
+.overview-header {
+    margin-bottom: 16px;
+}
+
+.overview-header .back-btn {
+    padding: 8px 14px;
+    font-size: 13px;
+}
+
+.view-details-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-weight: bold;
+}
+
+.back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin: 4px 0 14px;
+    color: #993d86;
+    font-size: 14px;
+    font-weight: bold;
+    text-decoration: none;
+}
+
+.back-link:hover {
+    text-decoration: underline;
+}
+
+.overview-eyebrow {
+    margin: 0;
+    font-size: 12px;
+    font-weight: bold;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: #993d86;
+}
+
+
+/* ---------- Picture left, details right ---------- */
+
+.overview-hero {
+    display: grid;
+    grid-template-columns: 200px minmax(0, 1fr);
+    gap: 24px;
+    align-items: start;
+}
+
+.overview-image {
+    position: relative;
+    width: 200px;
+    height: 200px;
+    border-radius: 12px;
+    overflow: hidden;
+    background: linear-gradient(135deg, #f3e8f1, #e9d5e5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.overview-image > i {
+    font-size: 52px;
+    color: #c79ebd;
+}
+
+.overview-image img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    background: #fff;
+}
+
+.overview-main {
+    min-width: 0;
+}
+
+
+/* ---------- Badges, title, location ---------- */
+
+.overview-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+.overview-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: bold;
+    letter-spacing: 0.3px;
+}
+
+.badge-type {
+    background: #f0e5ee;
+    color: #993d86;
+}
+
+.badge-category-type {
+    background: #1f2a44;
+    color: #fff;
+}
+
+.badge-open {
+    background: #e3f6e8;
+    color: #1e7a3a;
+}
+
+.badge-closed {
+    background: #fde8e6;
+    color: #c0392b;
+}
+
+.badge-players {
+    background: #eef1f6;
+    color: #1f2a44;
+}
+
+.overview-main h1 {
+    margin: 0 0 4px;
+    font-size: 22px;
+    line-height: 1.3;
+    color: #222;
+    overflow-wrap: anywhere;
+}
+
+.overview-location {
+    margin: 0 0 12px;
+    color: #555;
+    font-size: 14px;
+}
+
+.overview-location i {
+    color: #993d86;
+    margin-right: 5px;
+}
+
+
+/* ---------- Compact detail grid ---------- */
+
 .tournament-details {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 18px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0;
+    margin: 0;
+    border: 1px solid #ececf1;
+    border-radius: 10px;
+    overflow: hidden;
 }
 
 .detail-item {
-    display: flex;
-    flex-direction: column;
-    gap: 7px;
-    padding: 16px;
-    background: #f8f8fa;
-    border-radius: 8px;
+    padding: 9px 14px;
+    min-width: 0;
+    border-right: 1px solid #ececf1;
+    border-bottom: 1px solid #ececf1;
 }
 
-.detail-label {
-    font-size: 13px;
+.detail-item:nth-child(3n) {
+    border-right: none;
+}
+
+.detail-item:nth-last-child(-n + 3) {
+    border-bottom: none;
+}
+
+.detail-item dt {
+    margin: 0 0 2px;
+    font-size: 11px;
     font-weight: bold;
-    color: #777;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: #888;
 }
 
-.detail-value {
-    font-size: 15px;
+.detail-item dt i {
+    width: 14px;
+    margin-right: 3px;
+    color: #993d86;
+}
+
+.detail-item dd {
+    margin: 0;
+    font-size: 13px;
     color: #333;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+}
+
+
+/* ---------- Categories, description, link ---------- */
+
+.overview-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-top: 10px;
+}
+
+.overview-chip {
+    padding: 3px 10px;
+    border-radius: 20px;
+    background: #f0e5ee;
+    color: #993d86;
+    font-size: 11px;
+    font-weight: bold;
+}
+
+.overview-more {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 6px 18px;
+    margin-top: 10px;
+    font-size: 13px;
+}
+
+.overview-description {
+    flex: 1 1 300px;
+}
+
+.overview-description summary {
+    cursor: pointer;
+    color: #993d86;
+    font-weight: bold;
+    width: max-content;
+}
+
+.overview-description p {
+    margin: 8px 0 0;
+    padding: 12px 14px;
+    background: #faf7fa;
+    border-radius: 8px;
+    color: #555;
     line-height: 1.6;
 }
 
-.detail-description {
-    grid-column: 1 / -1;
+.detail-link {
+    color: #993d86;
+    font-weight: bold;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.detail-link:hover {
+    text-decoration: underline;
+}
+
+.fee-line {
+    display: block;
 }
 
 /* =========================================================
@@ -237,12 +465,37 @@ body {
         flex-direction: column;
     }
 
-    .tournament-details {
+    .overview-hero {
         grid-template-columns: 1fr;
     }
 
-    .detail-description {
-        grid-column: auto;
+    .overview-image {
+        width: 100%;
+        height: 160px;
+    }
+
+    .overview-main h1 {
+        font-size: 19px;
+    }
+
+    .tournament-details {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .detail-item:nth-child(3n) {
+        border-right: 1px solid #ececf1;
+    }
+
+    .detail-item:nth-child(2n) {
+        border-right: none;
+    }
+
+    .detail-item:nth-last-child(-n + 3) {
+        border-bottom: 1px solid #ececf1;
+    }
+
+    .detail-item:nth-last-child(-n + 2) {
+        border-bottom: none;
     }
 
     .back-btn {
@@ -366,13 +619,72 @@ body {
 }
 
 
+/* Category */
+.seeding-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    margin-bottom: 20px;
+}
+
+.seeding-category {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.seeding-category label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #555;
+    white-space: nowrap;
+}
+
+.seeding-category form {
+    margin: 0;
+}
+
+.seeding-category select {
+    height: 40px;
+    min-width: 160px;
+    padding: 0 35px 0 14px;
+    border: 1px solid #d9d9d9;
+    border-radius: 6px;
+    background-color: #fff;
+    color: #333;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    outline: none;
+    transition: all 0.2s ease;
+}
+
+.seeding-category select:hover {
+    border-color: #993d86;
+}
+
+.seeding-category select:focus {
+    border-color: #993d86;
+    box-shadow: 0 0 0 3px rgba(153, 61, 134, 0.12);
+}
+
+.seeding-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.seeding-actions form {
+    margin: 0;
+}
 /* ==========================================================
    REPORT BUTTON
 ========================================================== */
 
 .seeding-actions{
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     align-items: flex-start;
     gap: 10px;
 }
@@ -397,13 +709,17 @@ body {
 
 .btn.manage-seeding {
     display: block;
-    width: 15%;
+    width: 45%;
     height: 40px;
     padding: 0 18px;
     margin-bottom: 10px;
     text-decoration: none;
     text-align: center;
     line-height: 40px;
+}
+
+.selected-seeding-category{
+    margin-bottom: 15px;
 }
 
 .player-name {
@@ -469,6 +785,8 @@ body {
 }
 
 
+
+
 /* ==========================================================
    RESPONSIVE
 ========================================================== */
@@ -493,4 +811,56 @@ body {
         display: none;
     }
 
+}
+
+@media (max-width: 1100px) and (min-width: 769px) {
+
+    .overview-hero {
+        grid-template-columns: 160px minmax(0, 1fr);
+    }
+
+    .overview-image {
+        width: 160px;
+        height: 160px;
+    }
+
+}
+
+
+
+/* =========================================================
+   Wrong Age Category
+========================================================= */
+
+.wrong-category-alert {
+    margin-bottom: 22px;
+    padding: 14px 18px;
+    border: 1px solid #f3b8b1;
+    border-left: 5px solid #c0392b;
+    border-radius: 8px;
+    background: #fdf0ee;
+    color: #7a2a20;
+    font-size: 14px;
+}
+
+.wrong-category-title {
+    font-weight: bold;
+    color: #c0392b;
+}
+
+.wrong-category-title i {
+    margin-right: 6px;
+}
+
+.wrong-category-alert ul {
+    margin: 8px 0 0;
+    padding-left: 22px;
+    line-height: 1.7;
+}
+
+.category-badge.category-wrong {
+    background: #fde8e6;
+    color: #c0392b;
+    border: 1px solid #f3b8b1;
+    cursor: help;
 }

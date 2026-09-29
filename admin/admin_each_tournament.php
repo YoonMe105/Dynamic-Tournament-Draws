@@ -111,6 +111,52 @@ if (!$tournament) {
 
 /*
 |--------------------------------------------------------------------------
+| GET SEEDING CATEGORIES
+|--------------------------------------------------------------------------
+*/
+
+$categoryStmt = $conn->prepare("
+    SELECT DISTINCT category_registered
+    FROM tournament_register
+    WHERE tournamentID = ?
+      AND category_registered IS NOT NULL
+      AND category_registered <> ''
+    ORDER BY category_registered ASC
+");
+
+$categoryStmt->bind_param("i", $tournamentID);
+$categoryStmt->execute();
+
+$categoryResult = $categoryStmt->get_result();
+
+$categories = [];
+
+while ($categoryRow = $categoryResult->fetch_assoc()) {
+    $categories[] = $categoryRow['category_registered'];
+}
+
+$categoryStmt->close();
+
+/*
+|--------------------------------------------------------------------------
+| SELECTED SEEDING CATEGORY
+|--------------------------------------------------------------------------
+| If no category is selected, automatically show the first category.
+*/
+
+$selectedCategory = $_GET['category'] ?? '';
+
+if ($selectedCategory === '' && !empty($categories)) {
+    $selectedCategory = $categories[0];
+}
+
+if (!in_array($selectedCategory, $categories, true)) {
+    $selectedCategory = !empty($categories) ? $categories[0] : '';
+}
+
+
+/*
+|--------------------------------------------------------------------------
 | GET REGISTERED PLAYERS
 |--------------------------------------------------------------------------
 */
@@ -146,6 +192,140 @@ $playerStmt->execute();
 
 $playersResult = $playerStmt->get_result();
 
+
+/*
+|--------------------------------------------------------------------------
+| OVERVIEW DATA
+|--------------------------------------------------------------------------
+*/
+
+// Tournament categories as short codes (BU13, GU11, Men, Women)
+$overviewStmt = $conn->prepare("
+    SELECT category_name
+    FROM tournament_category
+    WHERE tournamentID = ?
+");
+
+$overviewStmt->bind_param("i", $tournamentID);
+$overviewStmt->execute();
+
+$overviewCategories = [];
+
+foreach ($overviewStmt->get_result()->fetch_all(MYSQLI_ASSOC) as $row) {
+
+    $name = trim($row['category_name']);
+
+    if (preg_match('/\b(boys?|girls?)\b.*?\bunder\s*(\d+)/i', $name, $matches)) {
+        $name = (strtolower($matches[1][0]) === 'b' ? 'B' : 'G') . 'U' . str_pad($matches[2], 2, '0', STR_PAD_LEFT);
+    }
+
+    $overviewCategories[$name] = true;
+}
+
+$overviewStmt->close();
+
+$overviewCategories = array_keys($overviewCategories);
+
+$overviewCategoryType = array_intersect(['Men', 'Women'], $overviewCategories)
+    ? 'PSA'
+    : (empty($overviewCategories) ? '' : 'Junior');
+
+// Registration status
+$deadlineTime = strtotime($tournament['tournament_deadline'] ?? '');
+$registrationOpen = $deadlineTime !== false && $deadlineTime > 0 && $deadlineTime >= time();
+$daysLeft = $registrationOpen ? (int) ceil(($deadlineTime - time()) / 86400) : 0;
+
+// Picture: new uploads store a file name, older tournaments store a path
+$overviewPicture = '';
+
+if (!empty($tournament['tournament_picture'])) {
+    $overviewPicture = strpos($tournament['tournament_picture'], '../') === 0
+        ? $tournament['tournament_picture']
+        : '../uploads/tournaments/' . $tournament['tournament_picture'];
+}
+
+function overviewDate($value, $withTime = true)
+{
+    $time = strtotime($value ?? '');
+
+    if ($time === false || $time <= 0) {
+        return '-';
+    }
+
+    return date($withTime ? 'd M Y, h:i A' : 'd M Y', $time);
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| WRONG AGE CATEGORY
+|--------------------------------------------------------------------------
+| Registrations whose player is too old for their category on the age
+| cut-off date. Skipped when the tournament has no cut-off date.
+*/
+
+require_once 'admin_age_check.php';
+
+require_once '../fees.php';
+
+$wrongCategories = [];
+
+if (!empty($tournament['tournament_age_cutoff'])) {
+
+    $ageStmt = $conn->prepare("
+        SELECT
+            tr.registrationID,
+            tr.category_registered,
+            p.player_full_name,
+            p.player_dob
+        FROM tournament_register tr
+        JOIN players p ON tr.playerID = p.playerID
+        WHERE tr.tournamentID = ?
+    ");
+
+    $ageStmt->bind_param("i", $tournamentID);
+    $ageStmt->execute();
+
+    foreach ($ageStmt->get_result()->fetch_all(MYSQLI_ASSOC) as $row) {
+
+        $wrong = wrongAgeCategory(
+            $row['category_registered'],
+            $row['player_dob'],
+            $tournament['tournament_age_cutoff']
+        );
+
+        if ($wrong !== null) {
+            $wrongCategories[$row['registrationID']] = $wrong + [
+                'name' => $row['player_full_name'],
+                'category' => $row['category_registered'],
+                'correct' => correctAgeCategory($row['category_registered'], $wrong['age'], $overviewCategories)
+            ];
+        }
+    }
+
+    $ageStmt->close();
+}
+
+// Category badge, marked when the player is too old for it
+function categoryBadge($registrationID, $category, $wrongCategories)
+{
+    $category = htmlspecialchars($category ?? '-');
+
+    if (!isset($wrongCategories[$registrationID])) {
+        return '<span class="category-badge">' . $category . '</span>';
+    }
+
+    $wrong = $wrongCategories[$registrationID];
+
+    $title = $wrong['correct'] !== null
+        ? 'Wrong category. The correct category is ' . $wrong['correct'] . '.'
+        : 'Wrong category. There is no category in this tournament for age ' . $wrong['age'] . '.';
+
+    return '<span class="category-badge category-wrong" title="' . htmlspecialchars($title) . '">'
+        . '<i class="fa-solid fa-triangle-exclamation"></i> ' . $category
+        . '</span>';
+}
+
 ?>
 
 <!DOCTYPE html>
@@ -164,6 +344,9 @@ $playersResult = $playerStmt->get_result();
 
     <link href="./assets/each_tournaments.css" rel="stylesheet" type="text/css">
 
+    <!-- Font Awesome (detail icons) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css">
+
 </head>
 
 <body>
@@ -177,130 +360,185 @@ $playersResult = $playerStmt->get_result();
 
     <!-- ==========================================================
          SECTION 1: TOURNAMENT DETAILS
-         YOUR ORIGINAL SECTION - NOT CHANGED
     =========================================================== -->
 
-    <section class="tournament-section">
-
-        <div class="section-header">
-
-            <div>
-
-                <h1>
-                    <?= htmlspecialchars($tournament['tournament_name']) ?>
-                </h1>
-
-                <p class="section-subtitle">
-                    Tournament Details
-                </p>
-
-            </div>
+    <a href="admin_index.php" class="back-link">
+        <i class="fa-solid fa-arrow-left"></i>
+        Back to Tournaments
+    </a>
 
 
-            <a href="admin_index.php" class="back-btn">
-                ← Back to Tournaments
+    <section class="tournament-section tournament-overview">
+
+
+        <!-- HEADER -->
+
+        <div class="section-header overview-header">
+
+            <p class="section-subtitle overview-eyebrow">
+                Tournament Details
+            </p>
+
+            <a href="admin_view_tournaments.php?id=<?= (int) $tournamentID ?>" class="back-btn view-details-btn">
+                <i class="fa-solid fa-eye"></i>
+                View Details
             </a>
 
         </div>
 
 
-        <div class="tournament-details">
+        <div class="overview-hero">
 
 
-            <div class="detail-item">
+            <!-- LEFT: PICTURE -->
 
-                <span class="detail-label">
-                    Tournament Name
-                </span>
+            <div class="overview-image">
 
-                <span class="detail-value">
-                    <?= htmlspecialchars($tournament['tournament_name']) ?>
-                </span>
+                <?php if ($overviewPicture !== ''): ?>
 
-            </div>
+                    <img
+                        src="<?= htmlspecialchars($overviewPicture) ?>"
+                        alt="<?= htmlspecialchars($tournament['tournament_name']) ?>"
+                        onerror="this.remove()"
+                    >
 
+                <?php endif; ?>
 
-            <div class="detail-item">
-
-                <span class="detail-label">
-                    Location
-                </span>
-
-                <span class="detail-value">
-                    <?= htmlspecialchars($tournament['tournament_location']) ?>
-                </span>
+                <i class="fa-solid fa-trophy"></i>
 
             </div>
 
 
-            <div class="detail-item">
+            <!-- RIGHT: DETAILS -->
 
-                <span class="detail-label">
-                    Start Date
-                </span>
+            <div class="overview-main">
 
-                <span class="detail-value">
-                    <?= htmlspecialchars($tournament['tournament_startdate']) ?>
-                </span>
+                <div class="overview-badges">
 
-            </div>
+                    <?php if (!empty($tournament['tournament_type'])): ?>
+                        <span class="overview-badge badge-type"><?= htmlspecialchars(strtoupper($tournament['tournament_type'])) ?></span>
+                    <?php endif; ?>
 
+                    <?php if ($overviewCategoryType !== ''): ?>
+                        <span class="overview-badge badge-category-type"><?= htmlspecialchars($overviewCategoryType) ?></span>
+                    <?php endif; ?>
 
-            <div class="detail-item">
-
-                <span class="detail-label">
-                    End Date
-                </span>
-
-                <span class="detail-value">
-                    <?= htmlspecialchars($tournament['tournament_enddate']) ?>
-                </span>
-
-            </div>
-
-
-            <div class="detail-item">
-
-                <span class="detail-label">
-                    Registration Deadline
-                </span>
-
-                <span class="detail-value">
-                    <?= htmlspecialchars($tournament['tournament_deadline']) ?>
-                </span>
-
-            </div>
-
-
-            <div class="detail-item">
-
-                <span class="detail-label">
-                    Entry Fee
-                </span>
-
-                <span class="detail-value">
-                    RM <?= number_format((float)$tournament['tournament_fee'], 2) ?>
-                </span>
-
-            </div>
-
-
-            <?php if (!empty($tournament['tournament_description'])): ?>
-
-                <div class="detail-item detail-description">
-
-                    <span class="detail-label">
-                        Description
+                    <span class="overview-badge <?= $registrationOpen ? 'badge-open' : 'badge-closed' ?>">
+                        <?= $registrationOpen
+                            ? 'Open &middot; ' . $daysLeft . ($daysLeft === 1 ? ' day left' : ' days left')
+                            : 'Registration Closed' ?>
                     </span>
 
-                    <span class="detail-value">
-                        <?= nl2br(htmlspecialchars($tournament['tournament_description'])) ?>
+                    <span class="overview-badge badge-players">
+                        <i class="fa-solid fa-users"></i>
+                        <?= $playersResult->num_rows ?> <?= $playersResult->num_rows === 1 ? 'player' : 'players' ?>
                     </span>
 
                 </div>
 
-            <?php endif; ?>
 
+                <h1><?= htmlspecialchars($tournament['tournament_name']) ?></h1>
+
+
+                <p class="overview-location">
+                    <i class="fa-solid fa-location-dot"></i>
+                    <?= htmlspecialchars($tournament['tournament_location'] ?: '-') ?><?php if (!empty($tournament['tournament_country'])): ?>,
+                        <strong><?= htmlspecialchars($tournament['tournament_country']) ?></strong>
+                    <?php endif; ?>
+                </p>
+
+
+                <dl class="tournament-details">
+
+                    <div class="detail-item">
+                        <dt><i class="fa-solid fa-calendar-day"></i> Start</dt>
+                        <dd><?= overviewDate($tournament['tournament_startdate']) ?></dd>
+                    </div>
+
+                    <div class="detail-item">
+                        <dt><i class="fa-solid fa-flag-checkered"></i> End</dt>
+                        <dd><?= overviewDate($tournament['tournament_enddate']) ?></dd>
+                    </div>
+
+                    <div class="detail-item">
+                        <dt><i class="fa-solid fa-hourglass-half"></i> Deadline</dt>
+                        <dd><?= overviewDate($tournament['tournament_deadline']) ?></dd>
+                    </div>
+
+                    <div class="detail-item">
+                        <dt><i class="fa-solid fa-cake-candles"></i> Age Cut-off</dt>
+                        <dd><?= overviewDate($tournament['tournament_age_cutoff'], false) ?></dd>
+                    </div>
+
+                    <div class="detail-item">
+                        <dt><i class="fa-solid fa-money-bill-wave"></i> Entry Fee</dt>
+                        <dd>
+                            <?php $feeParts = splitFee($tournament['tournament_fee'] ?? ''); ?>
+                            <?php if ($feeParts['foreign'] !== null): ?>
+                                <span class="fee-line">Local: <?= htmlspecialchars($feeParts['local']) ?></span>
+                                <span class="fee-line">Foreign: <?= htmlspecialchars($feeParts['foreign']) ?></span>
+                            <?php else: ?>
+                                <?= htmlspecialchars($tournament['tournament_fee'] ?: '-') ?>
+                            <?php endif; ?>
+                        </dd>
+                    </div>
+
+                    <div class="detail-item">
+                        <dt><i class="fa-solid fa-shirt"></i> T-Shirt</dt>
+                        <dd><?= htmlspecialchars($tournament['tournament_tshirt_size'] ?: '-') ?></dd>
+                    </div>
+
+                </dl>
+
+
+                <?php if (!empty($overviewCategories)): ?>
+
+                    <div class="overview-chips">
+
+                        <?php foreach ($overviewCategories as $categoryCode): ?>
+                            <span class="overview-chip"><?= htmlspecialchars($categoryCode) ?></span>
+                        <?php endforeach; ?>
+
+                    </div>
+
+                <?php endif; ?>
+
+
+                <?php if (!empty($tournament['tournament_description']) || !empty($tournament['tournament_detail_link'])): ?>
+
+                    <div class="overview-more">
+
+                        <?php if (!empty($tournament['tournament_description'])): ?>
+
+                            <details class="overview-description">
+
+                                <summary>Show description</summary>
+
+                                <p><?= nl2br(htmlspecialchars($tournament['tournament_description'])) ?></p>
+
+                            </details>
+
+                        <?php endif; ?>
+
+                        <?php if (!empty($tournament['tournament_detail_link'])): ?>
+
+                            <a
+                                class="detail-link"
+                                href="<?= htmlspecialchars($tournament['tournament_detail_link']) ?>"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                            >
+                                <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                                Tournament link
+                            </a>
+
+                        <?php endif; ?>
+
+                    </div>
+
+                <?php endif; ?>
+
+            </div>
 
         </div>
 
@@ -337,6 +575,52 @@ $playersResult = $playerStmt->get_result();
             </div>
 
         </div>
+
+
+        <!-- WRONG AGE CATEGORY -->
+
+        <?php if (!empty($wrongCategories)): ?>
+
+            <div class="wrong-category-alert" role="alert">
+
+                <div class="wrong-category-title">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    <?= count($wrongCategories) ?>
+                    <?= count($wrongCategories) === 1 ? 'player is' : 'players are' ?>
+                    in the wrong category for their age on the cut-off date
+                    (<?= overviewDate($tournament['tournament_age_cutoff'], false) ?>)
+                </div>
+
+                <ul>
+                    <?php foreach ($wrongCategories as $wrong): ?>
+                        <li>
+                            <strong><?= htmlspecialchars($wrong['name']) ?></strong>
+                            is currently registered in <strong><?= htmlspecialchars($wrong['category']) ?></strong>,
+                            <?php if ($wrong['correct'] !== null): ?>
+                                but the correct category is <strong><?= htmlspecialchars($wrong['correct']) ?></strong>.
+                            <?php else: ?>
+                                but there is no category in this tournament for age <?= $wrong['age'] ?>.
+                            <?php endif; ?>
+                        </li>
+                    <?php endforeach; ?>
+                </ul>
+
+            </div>
+
+
+            <script>
+                window.addEventListener('load', function () {
+                    alert(<?= json_encode(
+                        "Wrong category!\n\n"
+                        . implode("\n", array_map(function ($wrong) {
+                            return '- ' . wrongCategoryMessage($wrong['name'], $wrong['category'], $wrong['correct'], $wrong['age']);
+                        }, $wrongCategories))
+                        . "\n\nAge cut-off date: " . overviewDate($tournament['tournament_age_cutoff'], false)
+                    ) ?>);
+                });
+            </script>
+
+        <?php endif; ?>
 
 
         <!-- ======================================================
@@ -397,6 +681,14 @@ $playersResult = $playerStmt->get_result();
                                 Pending
                             </option>
 
+                            <option value="NOT PAID">
+                                Not Paid
+                            </option>
+
+                            <option value="REFUNDED">
+                                Refunded
+                            </option>
+
                         </select>
 
                     </div>
@@ -422,7 +714,9 @@ $playersResult = $playerStmt->get_result();
                                 tr.amount_paid,
                                 tr.payment_date,
                                 tr.payment_status,
-                                p.player_full_name
+                                tr.player_tshirt,
+                                p.player_full_name,
+                                p.player_nationality
                             FROM tournament_register tr
                             JOIN players p ON tr.playerID = p.playerID
                             WHERE tr.tournamentID = ?
@@ -455,9 +749,9 @@ $playersResult = $playerStmt->get_result();
 
                                             <th>Category</th>
 
-                                            <th>Amount Paid</th>
+                                            <th>Nationality</th>
 
-                                            <th>Payment Date</th>
+                                            <th>T-Shirt Size</th>
 
                                             <th>Payment Status</th>
 
@@ -510,26 +804,26 @@ $playersResult = $playerStmt->get_result();
 
                                                 <td>
 
-                                                    <span class="category-badge">
-
-                                                        <?= htmlspecialchars(
-                                                            $player['category_registered'] ?? '-'
-                                                        ) ?>
-
-                                                    </span>
+                                                    <?= categoryBadge(
+                                                        $player['registrationID'],
+                                                        $player['category_registered'],
+                                                        $wrongCategories
+                                                    ) ?>
 
                                                 </td>
 
 
                                                 <td>
-                                                    <?= $player['amount_paid'] ?? 0 ?>
+                                                    <?= !empty($player['player_nationality'])
+                                                        ? htmlspecialchars($player['player_nationality'])
+                                                        : '-' ?>
                                                 </td>
 
 
                                                 <td>
 
-                                                    <?= !empty($player['payment_date'])
-                                                        ? htmlspecialchars($player['payment_date'])
+                                                    <?= !empty($player['player_tshirt'])
+                                                        ? htmlspecialchars($player['player_tshirt'])
                                                         : '-' ?>
 
                                                 </td>
@@ -634,14 +928,6 @@ $playersResult = $playerStmt->get_result();
 
                         </select>
 
-
-                        <button
-                            class="btn"
-                            id="exportButton"
-                            type="button"
-                        >
-                            Endorsement Report
-                        </button>
 
                     </div>
 
@@ -749,13 +1035,11 @@ $playersResult = $playerStmt->get_result();
 
                                                 <td>
 
-                                                    <span class="category-badge">
-
-                                                        <?= htmlspecialchars(
-                                                            $player['category_registered'] ?? '-'
-                                                        ) ?>
-
-                                                    </span>
+                                                    <?= categoryBadge(
+                                                        $player['registrationID'],
+                                                        $player['category_registered'],
+                                                        $wrongCategories
+                                                    ) ?>
 
                                                 </td>
 
@@ -906,27 +1190,71 @@ $playersResult = $playerStmt->get_result();
         </div>
 
 
-        <!-- ======================================================
-            SEEDING ACTIONS
-        ======================================================= -->
+        <div class="seeding-toolbar">
+            <div class="seeding-category">
 
-        <div class="seeding-actions">
+                <label for="category-select">
+                    Select Category
+                </label>
 
-            <form method="POST" action="admin_seeding.php?id=<?= $tournamentID ?>">
+                <form method="GET" action="admin_each_tournament.php">
 
-                <input type="hidden" name="action" value="automatic_seeding">
+                    <input type="hidden" name="id" value="<?= $tournamentID ?>">
 
-                <button type="submit" class="btn">
-                    Automatic Seeding
-                </button>
+                    <select id="seeding_category" name="category" onchange="this.form.submit()">
 
-            </form>
+                        <?php if (!empty($categories)): ?>
+
+                            <?php foreach ($categories as $category): ?>
+
+                                <option
+                                    value="<?= htmlspecialchars($category) ?>"
+                                    <?= $selectedCategory === $category ? 'selected' : '' ?>
+                                >
+                                    <?= htmlspecialchars($category) ?>
+                                </option>
+
+                            <?php endforeach; ?>
+
+                        <?php else: ?>
+
+                            <option value="">
+                                No Category Available
+                            </option>
+
+                        <?php endif; ?>
+
+                    </select>
+
+                </form>
+
+            </div>
 
 
-            <a href="admin_seeding.php?id=<?= $tournamentID ?>" class="btn manage-seeding">
-                Manage Seeding
-            </a>
+            <!-- ======================================================
+                SEEDING ACTIONS
+            ======================================================= -->
 
+            <div class="seeding-actions">
+
+                <form method="POST" action="admin_seeding.php?id=<?= $tournamentID ?>&category=<?= urlencode($selectedCategory) ?>" onsubmit="automaticSeedingLoading()">
+                    <input type="hidden" name="action" value="automatic_seeding">
+                    <input type="hidden" name="category" value="<?= htmlspecialchars($selectedCategory) ?>">
+
+                    <button type="submit" id="automaticSeedingBtn" class="btn" <?= empty($selectedCategory) ? 'disabled' : '' ?>>
+                        Automatic Seeding
+                    </button>
+                </form>
+
+
+                <a
+                    href="admin_seeding.php?id=<?= $tournamentID ?>&category=<?= urlencode($selectedCategory) ?>"
+                    class="btn manage-seeding"
+                >
+                    Manage Seeding
+                </a>
+
+            </div>
         </div>
 
 
@@ -957,9 +1285,10 @@ $playersResult = $playerStmt->get_result();
                 ON tr.playerID = p.playerID
 
             WHERE tr.tournamentID = ?
+              AND tr.category_registered = ?
+              AND tr.endorsement = 'ENDORSED'
 
             ORDER BY
-                tr.category_registered ASC,
                 CASE
                     WHEN tr.seed_number IS NULL THEN 999999
                     ELSE tr.seed_number
@@ -967,7 +1296,7 @@ $playersResult = $playerStmt->get_result();
                 p.player_full_name ASC
         ");
 
-        $seedStmt->bind_param("i", $tournamentID);
+        $seedStmt->bind_param("is", $tournamentID, $selectedCategory);
 
         $seedStmt->execute();
 
@@ -977,6 +1306,11 @@ $playersResult = $playerStmt->get_result();
 
 
         <?php if ($seedResult->num_rows > 0): ?>
+
+            <div class="selected-seeding-category">
+                Showing Seeding for:
+                <strong><?= htmlspecialchars($selectedCategory) ?></strong>
+            </div>
 
             <div class="table-wrapper">
 
@@ -996,7 +1330,7 @@ $playersResult = $playerStmt->get_result();
 
                             <th>National Ranking</th>
 
-                            <th>AJSS Ranking</th>
+                            <th>Regional Ranking(AJSS)</th>
 
                             <th>Seed</th>
 
@@ -1039,13 +1373,11 @@ $playersResult = $playerStmt->get_result();
 
                                 <td>
 
-                                    <span class="category-badge">
-
-                                        <?= htmlspecialchars(
-                                            $seedPlayer['category_registered']
-                                        ) ?>
-
-                                    </span>
+                                    <?= categoryBadge(
+                                        $seedPlayer['registrationID'],
+                                        $seedPlayer['category_registered'],
+                                        $wrongCategories
+                                    ) ?>
 
                                 </td>
 
@@ -1138,7 +1470,10 @@ $playersResult = $playerStmt->get_result();
                 </h3>
 
                 <p>
-                    There are currently no registered players for seeding.
+                    There are currently no registered players for
+                    <?= !empty($selectedCategory)
+                        ? '<strong>' . htmlspecialchars($selectedCategory) . '</strong>'
+                        : 'this category' ?>.
                 </p>
 
             </div>
@@ -1567,31 +1902,6 @@ function getTodayDate() {
 
 /*
 |--------------------------------------------------------------------------
-| ENDORSEMENT REPORT
-|--------------------------------------------------------------------------
-*/
-
-document
-    .getElementById('exportButton')
-    .addEventListener(
-        'click',
-        function() {
-
-
-            const tournamentID =
-                <?= $tournamentID ?>;
-
-
-            window.location.href =
-                'admin_excel_endorsement.php?tournamentID=' +
-                encodeURIComponent(tournamentID);
-
-        }
-    );
-
-
-/*
-|--------------------------------------------------------------------------
 | PAGE LOAD
 |--------------------------------------------------------------------------
 */
@@ -1650,6 +1960,16 @@ document.addEventListener(
 
     }
 );
+
+function automaticSeedingLoading() {
+
+    const button = document.getElementById('automaticSeedingBtn');
+
+    if (button) {
+        button.disabled = true;
+        button.textContent = 'Generating Seeding...';
+    }
+}
 
 </script>
 
