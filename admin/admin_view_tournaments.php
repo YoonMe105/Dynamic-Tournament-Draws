@@ -408,6 +408,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_changes'])) {
 
             $insertCategoryStmt->close();
         }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | New Picture (optional)
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            isset($_FILES['tournament_picture']) &&
+            $_FILES['tournament_picture']['error'] === UPLOAD_ERR_OK
+        ) {
+
+            $uploadDir = '../uploads/tournaments/';
+
+            if (!is_dir($uploadDir)) {
+                mkdir($uploadDir, 0777, true);
+            }
+
+            $fileExtension = strtolower(pathinfo(
+                basename($_FILES['tournament_picture']['name']),
+                PATHINFO_EXTENSION
+            ));
+
+            if (!in_array($fileExtension, ['jpg', 'jpeg', 'png', 'webp'], true)) {
+                throw new Exception('Invalid picture format. Please upload JPG, JPEG, PNG or WEBP.');
+            }
+
+            $newFileName = uniqid('tournament_', true) . '.' . $fileExtension;
+
+            if (!move_uploaded_file($_FILES['tournament_picture']['tmp_name'], $uploadDir . $newFileName)) {
+                throw new Exception('Failed to upload tournament picture.');
+            }
+
+            $pictureStmt = $conn->prepare("UPDATE tournament SET tournament_picture = ? WHERE tournamentID = ?");
+            $pictureStmt->bind_param("si", $newFileName, $tournamentID);
+            $pictureStmt->execute();
+            $pictureStmt->close();
+        }
+
         $conn->commit();
 
         header(
@@ -516,6 +556,81 @@ if ($tournament && !empty($tournament['registration_field'])) {
     );
 }
 
+
+/*
+|--------------------------------------------------------------------------
+| Display Helpers
+|--------------------------------------------------------------------------
+*/
+
+// Formatted date, or "Not specified" when empty / 0000-00-00
+function viewDate($value, $format)
+{
+    if (empty($value) || strpos($value, '0000-00-00') === 0) {
+        return 'Not specified';
+    }
+
+    return date($format, strtotime($value));
+}
+
+
+$picture_src = './assets/tournament.jpg';
+$status = ['label' => '', 'class' => ''];
+$selected_category_chips = [];
+$registration_selected_count = 0;
+
+if ($tournament) {
+
+    // New uploads store a file name; older tournaments store a path
+    $picture = trim($tournament['tournament_picture'] ?? '');
+
+    if ($picture !== '' && strtoupper($picture) !== 'NULL') {
+
+        $path = strpos($picture, '../') === 0 ? $picture : '../uploads/tournaments/' . $picture;
+
+        if (file_exists(__DIR__ . '/' . $path)) {
+            $picture_src = $path;
+        }
+    }
+
+
+    // Registration open / closed / ongoing / finished
+    $now = time();
+    $start = strtotime($tournament['tournament_startdate']);
+    $end = strtotime($tournament['tournament_enddate']);
+    $deadline = strtotime($tournament['tournament_deadline']);
+
+    if ($deadline && $deadline >= $now) {
+        $status = ['label' => 'Registration Open', 'class' => 'open'];
+    } elseif ($start && $start > $now) {
+        $status = ['label' => 'Registration Closed', 'class' => 'closed'];
+    } elseif ($end && $end >= $now) {
+        $status = ['label' => 'Ongoing', 'class' => 'ongoing'];
+    } else {
+        $status = ['label' => 'Finished', 'class' => 'finished'];
+    }
+
+
+    // Selected categories as short codes (BU15, GU13, MEN), in list order
+    foreach (array_merge($all_categories, $psa_categories) as $code => $category) {
+        if (in_array($category['name'], $selected_categories, true)) {
+            $selected_category_chips[$code] = $category['name'];
+        }
+    }
+
+    // Categories saved under another name
+    foreach ($selected_categories as $name) {
+        if (!in_array($name, $selected_category_chips, true)) {
+            $selected_category_chips[$name] = $name;
+        }
+    }
+
+    $registration_selected_count = count(array_intersect(
+        array_keys($registration_options),
+        $selected_registration_fields
+    ));
+}
+
 ?>
 
 <!DOCTYPE html>
@@ -529,8 +644,10 @@ if ($tournament && !empty($tournament['registration_field'])) {
 
     <title>Tournament Details | T_Software</title>
 
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css">
+
     <link rel="stylesheet" href="./assets/style.css">
-    <link rel="stylesheet" href="./assets/view_tournament.css">
+    <link rel="stylesheet" href="./assets/view_tournament.css?v=<?= filemtime(__DIR__ . '/assets/view_tournament.css') ?>">
 
 </head>
 
@@ -545,21 +662,26 @@ if ($tournament && !empty($tournament['registration_field'])) {
 
         <?php if ($tournament): ?>
 
-            <div class="page-header">
+            <a href="admin_each_tournament.php?id=<?= (int)$tournamentID ?>" class="back-link">
+                <i class="fa-solid fa-arrow-left"></i>
+                Back to Tournament
+            </a>
 
-                <div>
 
-                    <h1>
-                        <?= htmlspecialchars($tournament['tournament_name']) ?>
-                    </h1>
+            <?php if (isset($_GET['created'])): ?>
+
+                <div class="update-message">
+                    <i class="fa-solid fa-circle-check"></i>
+                    Tournament created successfully.
                 </div>
 
-            </div>
+            <?php endif; ?>
 
 
             <?php if (isset($_GET['updated'])): ?>
 
                 <div class="update-message">
+                    <i class="fa-solid fa-circle-check"></i>
                     Tournament updated successfully.
                 </div>
 
@@ -569,824 +691,684 @@ if ($tournament && !empty($tournament['registration_field'])) {
             <?php if (isset($error_message)): ?>
 
                 <div class="error-message">
+                    <i class="fa-solid fa-circle-exclamation"></i>
                     <?= htmlspecialchars($error_message) ?>
                 </div>
 
             <?php endif; ?>
 
 
-            <form method="POST" action="admin_view_tournaments.php?id=<?= (int)$tournamentID ?>">
+            <form
+                method="POST"
+                action="admin_view_tournaments.php?id=<?= (int)$tournamentID ?><?= $edit_mode ? '&edit=1' : '' ?>"
+                enctype="multipart/form-data"
+                class="<?= $edit_mode ? 'is-editing' : '' ?>"
+            >
 
-                <input
-                    type="hidden"
-                    name="tournamentID"
-                    value="<?= (int)$tournamentID ?>"
-                >
-
-                <section class="form-section">
-                    <div class="form-group">
-
-                        <div class="picture-upload-box">
-                            <div class="picture-preview">
-                                <img id="picturePreview"
-                                    src="<?= !empty($tournament['tournament_picture']) ? htmlspecialchars($tournament['tournament_picture']) : '../images/default-tournament.jpg' ?>"
-                                    alt="Tournament Picture">
-                            </div>
-
-                            <div class="picture-upload">
-                                <label for="tournament_picture" class="choose-file-btn">Choose File</label>
-                                <input type="file" id="tournament_picture" name="tournament_picture" accept="image/*" onchange="previewPicture(this)">
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
-                <section class="form-section">
-                    <div class="form-row">
+                <input type="hidden" name="tournamentID" value="<?= (int)$tournamentID ?>">
 
 
-                        <div class="form-group">
+                <!-- =========================================================
+                    HEADER: picture | name, badges, actions
+                ========================================================== -->
 
-                            <label>Tournament ID</label>
+                <section class="hero-card">
 
-                            <div class="view-value">
-                                <?= (int)$tournament['tournamentID'] ?>
-                            </div>
+                    <div class="hero-picture">
 
-                        </div>
-
-
-                        <div class="form-group">
-
-                            <label>Tournament Name</label>
-
-                            <?php if ($edit_mode): ?>
-
-                                <input
-                                    type="text"
-                                    name="tournament_name"
-                                    value="<?= htmlspecialchars($tournament['tournament_name']) ?>"
-                                    required
-                                >
-
-                            <?php else: ?>
-
-                                <div class="view-value">
-                                    <?= htmlspecialchars($tournament['tournament_name']) ?>
-                                </div>
-
-                            <?php endif; ?>
-
-                        </div>
-
-
-                    </div>
-
-
-                    <div class="form-group">
-
-                        <label>Tournament Description</label>
+                        <img id="picturePreview" src="<?= htmlspecialchars($picture_src) ?>" alt="Tournament picture">
 
                         <?php if ($edit_mode): ?>
 
-                            <textarea
-                                name="tournament_description"
-                                rows="5"
-                            ><?= htmlspecialchars($tournament['tournament_description']) ?></textarea>
+                            <label for="tournament_picture" class="change-picture-btn">
+                                <i class="fa-solid fa-camera"></i>
+                                Change picture
+                            </label>
 
-                        <?php else: ?>
-
-                            <div class="view-description">
-                                <?= nl2br(htmlspecialchars($tournament['tournament_description'])) ?>
-                            </div>
+                            <input
+                                type="file"
+                                id="tournament_picture"
+                                name="tournament_picture"
+                                accept=".jpg,.jpeg,.png,.webp"
+                                onchange="previewPicture(this)"
+                                hidden
+                            >
 
                         <?php endif; ?>
 
                     </div>
 
 
-                    <div class="form-row">
+                    <div class="hero-info">
 
+                        <div class="hero-badges">
 
-                        <div class="form-group">
+                            <span class="badge status-<?= $status['class'] ?>">
+                                <?= $status['label'] ?>
+                            </span>
 
-                            <label>Tournament Start Date</label>
+                            <span class="badge">
+                                <?= htmlspecialchars(strtoupper($tournament['tournament_type'])) ?>
+                            </span>
 
-                            <?php if ($edit_mode): ?>
+                            <?php if ($category_type !== ''): ?>
+                                <span class="badge"><?= htmlspecialchars($category_type) ?></span>
+                            <?php endif; ?>
 
-                                <input
-                                    type="datetime-local"
-                                    name="tournament_startdate"
-                                    value="<?= date('Y-m-d\TH:i', strtotime($tournament['tournament_startdate'])) ?>"
-                                    required
-                                >
-
-                            <?php else: ?>
-
-                                <div class="view-value">
-                                    <?= date('d/m/Y h:i A', strtotime($tournament['tournament_startdate'])) ?>
-                                </div>
-
+                            <?php if (!empty($tournament['tournament_country'])): ?>
+                                <span class="badge">
+                                    <i class="fa-solid fa-flag"></i>
+                                    <?= htmlspecialchars($tournament['tournament_country']) ?>
+                                </span>
                             <?php endif; ?>
 
                         </div>
 
-
-                        <div class="form-group">
-
-                            <label>Tournament End Date</label>
-
-                            <?php if ($edit_mode): ?>
-
-                                <input
-                                    type="datetime-local"
-                                    name="tournament_enddate"
-                                    value="<?= date('Y-m-d\TH:i', strtotime($tournament['tournament_enddate'])) ?>"
-                                    required
-                                >
-
-                            <?php else: ?>
-
-                                <div class="view-value">
-                                    <?= date('d/m/Y h:i A', strtotime($tournament['tournament_enddate'])) ?>
-                                </div>
-
-                            <?php endif; ?>
-
-                        </div>
-
-
-                    </div>
-
-
-                    <div class="form-row">
-
-
-                        <div class="form-group">
-
-                            <label>Registration Deadline</label>
-
-                            <?php if ($edit_mode): ?>
-
-                                <input
-                                    type="datetime-local"
-                                    name="tournament_deadline"
-                                    value="<?= date('Y-m-d\TH:i', strtotime($tournament['tournament_deadline'])) ?>"
-                                    required
-                                >
-
-                            <?php else: ?>
-
-                                <div class="view-value">
-                                    <?= date('d/m/Y h:i A', strtotime($tournament['tournament_deadline'])) ?>
-                                </div>
-
-                            <?php endif; ?>
-
-                        </div>
-
-
-                        <div class="form-group">
-
-                            <label>Age Cut Off Date</label>
-
-                            <?php if ($edit_mode): ?>
-
-                                <input
-                                    type="date"
-                                    name="tournament_age_cutoff"
-                                    value="<?= !empty($tournament['tournament_age_cutoff']) ? date('Y-m-d', strtotime($tournament['tournament_age_cutoff'])) : '' ?>"
-                                >
-
-                            <?php else: ?>
-
-                                <div class="view-value">
-
-                                    <?php if (!empty($tournament['tournament_age_cutoff'])): ?>
-
-                                        <?= date('d/m/Y', strtotime($tournament['tournament_age_cutoff'])) ?>
-
-                                    <?php else: ?>
-
-                                        Not specified
-
-                                    <?php endif; ?>
-
-                                </div>
-
-                            <?php endif; ?>
-
-                        </div>
-
-
-                    </div>
-
-
-                    <div class="form-row">
-
-
-                        <div class="form-group">
-
-                            <label>Tournament Type</label>
-
-                            <?php if ($edit_mode): ?>
-
-                                <input
-                                    type="text"
-                                    id="tournament_type"
-                                    name="tournament_type"
-                                    value="<?= htmlspecialchars($tournament['tournament_type']) ?>"
-                                    list="tournament_type_options"
-                                    oninput="toggleUsdFee()"
-                                    required
-                                >
-
-                                <datalist id="tournament_type_options">
-                                    <option value="Local">
-                                    <option value="International">
-                                    <option value="National">
-                                </datalist>
-
-                            <?php else: ?>
-
-                                <div class="view-value">
-                                    <?= htmlspecialchars($tournament['tournament_type']) ?>
-                                </div>
-
-                            <?php endif; ?>
-
-                        </div>
-
-
-                        <div class="form-group">
-
-                            <label>Tournament Location</label>
-
-                            <?php if ($edit_mode): ?>
-
-                                <input
-                                    type="text"
-                                    name="tournament_location"
-                                    value="<?= htmlspecialchars($tournament['tournament_location']) ?>"
-                                    required
-                                >
-
-                            <?php else: ?>
-
-                                <div class="view-value">
-                                    <?= htmlspecialchars($tournament['tournament_location']) ?>
-                                </div>
-
-                            <?php endif; ?>
-
-                        </div>
-
-
-                    </div>
-
-
-                    <div class="form-row">
-
-
-                        <div class="form-group">
-
-                            <label>Country</label>
-
-                            <?php if ($edit_mode): ?>
-
-                                <select name="tournament_country" class="styled-select" required>
-
-                                    <option value="">Select country</option>
-
-                                    <?php foreach ($tournament_countries as $country): ?>
-
-                                        <option
-                                            value="<?= htmlspecialchars($country) ?>"
-                                            <?= ($tournament['tournament_country'] ?? '') === $country ? 'selected' : '' ?>
-                                        >
-                                            <?= htmlspecialchars($country) ?>
-                                        </option>
-
-                                    <?php endforeach; ?>
-
-                                </select>
-
-                            <?php else: ?>
-
-                                <div class="view-value">
-                                    <?= htmlspecialchars($tournament['tournament_country'] ?: '-') ?>
-                                </div>
-
-                            <?php endif; ?>
-
-                        </div>
-
-
-                    </div>
-
-
-                    <?php
-                    // International: RM fee -> RM field, USD fee -> USD field
-                    // (a USD-only fee goes in the USD field).
-                    // Other tournaments keep the whole fee text in the RM field.
-                    if (stripos($tournament['tournament_type'] ?? '', 'international') !== false) {
-                        $fields = feeFields($tournament['tournament_fee'] ?? '');
-                        $feeParts = ['local' => $fields['rm'], 'foreign' => $fields['usd'], 'details' => $fields['details']];
-                    } else {
-                        $feeParts = ['local' => $tournament['tournament_fee'] ?? '', 'foreign' => null, 'details' => null];
-                    }
-                    ?>
-
-                    <div class="form-row">
-
-
-                        <div class="form-group">
-
-                            <label>Entry Fee (RM)</label>
-
-                            <?php if ($edit_mode): ?>
-
-                                <input
-                                    type="text"
-                                    name="tournament_fee"
-                                    value="<?= htmlspecialchars($feeParts['local']) ?>"
-                                >
-
-                                <?php if ($feeParts['details'] !== null): ?>
-
-                                    <small class="locked-note">
-                                        Currently saved as: &ldquo;<?= htmlspecialchars($feeParts['details']) ?>&rdquo;.
-                                        Saving will keep only the RM and USD amounts.
-                                    </small>
-
-                                <?php endif; ?>
-
-                            <?php else: ?>
-
-                                <div class="view-value">
-                                    <?= htmlspecialchars($feeParts['local'] !== '' ? $feeParts['local'] : '-') ?>
-                                </div>
-
-                            <?php endif; ?>
-
-                        </div>
-
-
-                        <div class="form-group">
-
-                            <label>T-Shirt Size Option</label>
-
-                            <?php if ($edit_mode): ?>
-
-                                <input
-                                    type="text"
-                                    name="tournament_tshirt_size"
-                                    value="<?= htmlspecialchars($tournament['tournament_tshirt_size']) ?>"
-                                >
-
-                            <?php else: ?>
-
-                                <div class="view-value">
-
-                                    <?php if (!empty($tournament['tournament_tshirt_size'])): ?>
-
-                                        <?= htmlspecialchars($tournament['tournament_tshirt_size']) ?>
-
-                                    <?php else: ?>
-
-                                        Not specified
-
-                                    <?php endif; ?>
-
-                                </div>
-
-                            <?php endif; ?>
-
-                        </div>
-
-
-                    </div>
-
-
-                    <!-- USD fee: international tournaments only -->
-
-                    <?php $isInternational = stripos($tournament['tournament_type'] ?? '', 'international') !== false; ?>
-
-                    <?php if ($edit_mode || $isInternational): ?>
-
-                        <div class="form-row usd-fee-row" <?= $isInternational ? '' : 'hidden' ?>>
-
-                            <div class="form-group">
-
-                                <label>Entry Fee (USD)</label>
-
-                                <?php if ($edit_mode): ?>
-
-                                    <input
-                                        type="text"
-                                        id="tournament_fee_usd"
-                                        name="tournament_fee_usd"
-                                        value="<?= htmlspecialchars($feeParts['foreign'] ?? '') ?>"
-                                        placeholder="e.g. USD 60.00"
-                                        <?= $isInternational ? '' : 'disabled' ?>
-                                    >
-
-                                    <small class="locked-note">
-                                        Fill in the RM fee, the USD fee, or both. With both, Malaysian players
-                                        pay RM and foreign players pay USD (saved as &ldquo;Local: RM120.00, Foreign: USD 60.00&rdquo;).
-                                    </small>
-
-                                <?php else: ?>
-
-                                    <div class="view-value">
-                                        <?= htmlspecialchars(($feeParts['foreign'] ?? '') !== '' ? $feeParts['foreign'] : '-') ?>
-                                    </div>
-
-                                <?php endif; ?>
-
-                            </div>
-
-                        </div>
-
-                    <?php endif; ?>
-
-
-                    <div class="form-group">
-
-                        <label>Detail Link</label>
 
                         <?php if ($edit_mode): ?>
 
+                            <label class="field-label" for="tournament_name">Tournament Name</label>
+
                             <input
-                                type="url"
-                                name="tournament_detail_link"
-                                value="<?= htmlspecialchars($tournament['tournament_detail_link']) ?>"
+                                type="text"
+                                id="tournament_name"
+                                name="tournament_name"
+                                class="name-input"
+                                value="<?= htmlspecialchars($tournament['tournament_name']) ?>"
+                                required
                             >
 
                         <?php else: ?>
 
-                            <div class="view-value">
-
-                                <?php if (!empty($tournament['tournament_detail_link'])): ?>
-
-                                    <a
-                                        href="<?= htmlspecialchars($tournament['tournament_detail_link']) ?>"
-                                        target="_blank" class="detail"
-                                    >
-                                        <?= htmlspecialchars($tournament['tournament_detail_link']) ?>
-                                    </a>
-
-                                <?php else: ?>
-
-                                    Not specified
-
-                                <?php endif; ?>
-
-                            </div>
+                            <h1><?= htmlspecialchars($tournament['tournament_name']) ?></h1>
 
                         <?php endif; ?>
 
-                    </div>
+
+                        <p class="hero-meta">
+                            <span><i class="fa-solid fa-hashtag"></i> ID <?= (int)$tournament['tournamentID'] ?></span>
+                            <span><i class="fa-regular fa-calendar"></i> <?= viewDate($tournament['tournament_startdate'], 'd M Y') ?> &ndash; <?= viewDate($tournament['tournament_enddate'], 'd M Y') ?></span>
+                            <?php if (!empty($tournament['tournament_location'])): ?>
+                                <span><i class="fa-solid fa-location-dot"></i> <?= htmlspecialchars($tournament['tournament_location']) ?></span>
+                            <?php endif; ?>
+                        </p>
 
 
-                    <?php if (!empty($tournament['tournament_picture'])): ?>
+                        <?php if (!$edit_mode): ?>
 
-                        <div class="form-group">
+                            <div class="hero-actions">
 
-                            <label>Tournament Picture</label>
+                                <a class="primary-btn" href="admin_view_tournaments.php?id=<?= (int)$tournamentID ?>&edit=1">
+                                    <i class="fa-solid fa-pen"></i>
+                                    Edit Tournament
+                                </a>
 
-                            <div class="tournament-picture">
-
-                                <img
-                                    src="<?= htmlspecialchars($tournament['tournament_picture']) ?>"
-                                    alt="Tournament Picture"
-                                >
+                                <a class="secondary-btn" href="admin_each_tournament.php?id=<?= (int)$tournamentID ?>">
+                                    <i class="fa-solid fa-users"></i>
+                                    Registrations
+                                </a>
 
                             </div>
-
-                        </div>
-
-                    <?php endif; ?>
-
-
-                </section>
-
-
-                <!-- =========================================================
-                    CATEGORIES
-                ========================================================== -->
-
-                <section class="form-section">
-
-                    <h2>Tournament Categories</h2>
-
-                    <p class="section-description">
-                        Categories available for this tournament.
-                    </p>
-
-
-                    <!-- CATEGORY TYPE -->
-
-                    <div class="form-group category-type-group">
-
-                        <label for="category_type">Category Type</label>
-
-                        <?php if ($edit_mode && $category_type_locked): ?>
-
-                            <div class="view-value locked-value">
-                                <?= htmlspecialchars($category_type) ?>
-                            </div>
-
-                            <small class="locked-note">
-                                The category type can't be changed once it is set.
-                            </small>
-
-                        <?php elseif ($edit_mode): ?>
-
-                            <select id="category_type" name="category_type" class="styled-select" onchange="showCategoryType()" required>
-
-                                <option value="">Select category type</option>
-
-                                <option value="Junior" <?= $category_type === 'Junior' ? 'selected' : '' ?>>
-                                    Junior
-                                </option>
-
-                                <option value="PSA" <?= $category_type === 'PSA' ? 'selected' : '' ?>>
-                                    PSA
-                                </option>
-
-                            </select>
 
                         <?php else: ?>
 
-                            <div class="view-value">
-                                <?= htmlspecialchars($category_type ?: '-') ?>
-                            </div>
+                            <p class="editing-note">
+                                <i class="fa-solid fa-pen"></i>
+                                You are editing this tournament. Save your changes at the bottom of the page.
+                            </p>
 
                         <?php endif; ?>
 
                     </div>
 
-
-                    <?php
-
-                    $category_groups = [
-                        'Junior' => $all_categories,
-                        'PSA' => $psa_categories
-                    ];
-
-                    ?>
+                </section>
 
 
-                    <?php if ($edit_mode): ?>
 
-                        <p class="category-hint" <?= $category_type_locked ? 'hidden' : '' ?>>
-                            Choose a category type to see its categories.
-                        </p>
-
-                    <?php endif; ?>
+                <div class="details-layout">
 
 
-                    <?php foreach ($category_groups as $group_type => $group_categories): ?>
+                    <!-- =====================================================
+                        LEFT: tournament details
+                    ====================================================== -->
 
+                    <div class="details-main">
+
+
+                        <!-- SCHEDULE -->
+
+                        <section class="card">
+
+                            <div class="card-header">
+                                <span class="card-icon"><i class="fa-regular fa-calendar"></i></span>
+                                <h2>Schedule</h2>
+                            </div>
+
+                            <div class="field-grid">
+
+                                <div class="field">
+                                    <span class="field-label">Start Date</span>
+
+                                    <?php if ($edit_mode): ?>
+                                        <input type="datetime-local" name="tournament_startdate"
+                                               value="<?= date('Y-m-d\TH:i', strtotime($tournament['tournament_startdate'])) ?>" required>
+                                    <?php else: ?>
+                                        <span class="field-value"><?= viewDate($tournament['tournament_startdate'], 'd M Y, h:i A') ?></span>
+                                    <?php endif; ?>
+                                </div>
+
+                                <div class="field">
+                                    <span class="field-label">End Date</span>
+
+                                    <?php if ($edit_mode): ?>
+                                        <input type="datetime-local" name="tournament_enddate"
+                                               value="<?= date('Y-m-d\TH:i', strtotime($tournament['tournament_enddate'])) ?>" required>
+                                    <?php else: ?>
+                                        <span class="field-value"><?= viewDate($tournament['tournament_enddate'], 'd M Y, h:i A') ?></span>
+                                    <?php endif; ?>
+                                </div>
+
+                                <div class="field">
+                                    <span class="field-label">Registration Deadline</span>
+
+                                    <?php if ($edit_mode): ?>
+                                        <input type="datetime-local" name="tournament_deadline"
+                                               value="<?= date('Y-m-d\TH:i', strtotime($tournament['tournament_deadline'])) ?>" required>
+                                    <?php else: ?>
+                                        <span class="field-value"><?= viewDate($tournament['tournament_deadline'], 'd M Y, h:i A') ?></span>
+                                    <?php endif; ?>
+                                </div>
+
+                                <div class="field">
+                                    <span class="field-label">Age Cut-off Date</span>
+
+                                    <?php if ($edit_mode): ?>
+                                        <input type="date" name="tournament_age_cutoff"
+                                               value="<?= !empty($tournament['tournament_age_cutoff']) ? date('Y-m-d', strtotime($tournament['tournament_age_cutoff'])) : '' ?>">
+                                    <?php else: ?>
+                                        <span class="field-value <?= empty($tournament['tournament_age_cutoff']) ? 'empty' : '' ?>">
+                                            <?= viewDate($tournament['tournament_age_cutoff'], 'd M Y') ?>
+                                        </span>
+                                    <?php endif; ?>
+                                </div>
+
+                            </div>
+
+                        </section>
+
+
+                        <!-- VENUE -->
+
+                        <section class="card">
+
+                            <div class="card-header">
+                                <span class="card-icon"><i class="fa-solid fa-location-dot"></i></span>
+                                <h2>Venue &amp; Type</h2>
+                            </div>
+
+                            <div class="field-grid">
+
+                                <div class="field">
+                                    <span class="field-label">Tournament Type</span>
+
+                                    <?php if ($edit_mode): ?>
+
+                                        <input
+                                            type="text"
+                                            id="tournament_type"
+                                            name="tournament_type"
+                                            value="<?= htmlspecialchars($tournament['tournament_type']) ?>"
+                                            list="tournament_type_options"
+                                            oninput="toggleUsdFee()"
+                                            required
+                                        >
+
+                                        <datalist id="tournament_type_options">
+                                            <option value="Local">
+                                            <option value="International">
+                                            <option value="National">
+                                        </datalist>
+
+                                    <?php else: ?>
+                                        <span class="field-value"><?= htmlspecialchars($tournament['tournament_type']) ?></span>
+                                    <?php endif; ?>
+                                </div>
+
+                                <div class="field">
+                                    <span class="field-label">Country</span>
+
+                                    <?php if ($edit_mode): ?>
+
+                                        <select name="tournament_country" class="styled-select" required>
+
+                                            <option value="">Select country</option>
+
+                                            <?php foreach ($tournament_countries as $country): ?>
+                                                <option
+                                                    value="<?= htmlspecialchars($country) ?>"
+                                                    <?= ($tournament['tournament_country'] ?? '') === $country ? 'selected' : '' ?>
+                                                >
+                                                    <?= htmlspecialchars($country) ?>
+                                                </option>
+                                            <?php endforeach; ?>
+
+                                        </select>
+
+                                    <?php else: ?>
+                                        <span class="field-value <?= empty($tournament['tournament_country']) ? 'empty' : '' ?>">
+                                            <?= htmlspecialchars($tournament['tournament_country'] ?: 'Not specified') ?>
+                                        </span>
+                                    <?php endif; ?>
+                                </div>
+
+                                <div class="field field-wide">
+                                    <span class="field-label">Location</span>
+
+                                    <?php if ($edit_mode): ?>
+                                        <input type="text" name="tournament_location"
+                                               value="<?= htmlspecialchars($tournament['tournament_location']) ?>" required>
+                                    <?php else: ?>
+                                        <span class="field-value"><?= htmlspecialchars($tournament['tournament_location']) ?></span>
+                                    <?php endif; ?>
+                                </div>
+
+                            </div>
+
+                        </section>
+
+
+                        <!-- FEES & EXTRAS -->
 
                         <?php
-                        // Once the type is set, only that type's categories are shown
-                        if ((!$edit_mode || $category_type_locked) && $group_type !== $category_type) {
-                            continue;
+                        // International: RM fee -> RM field, USD fee -> USD field
+                        // (a USD-only fee goes in the USD field).
+                        // Other tournaments keep the whole fee text in the RM field.
+                        $isInternational = stripos($tournament['tournament_type'] ?? '', 'international') !== false;
+
+                        if ($isInternational) {
+                            $fields = feeFields($tournament['tournament_fee'] ?? '');
+                            $feeParts = ['local' => $fields['rm'], 'foreign' => $fields['usd'], 'details' => $fields['details']];
+                        } else {
+                            $feeParts = ['local' => $tournament['tournament_fee'] ?? '', 'foreign' => null, 'details' => null];
                         }
                         ?>
 
+                        <section class="card">
 
-                        <div
-                            class="checkbox-grid category-group"
-                            data-category-type="<?= $group_type ?>"
-                            <?= $group_type !== $category_type ? 'hidden' : '' ?>
-                        >
+                            <div class="card-header">
+                                <span class="card-icon"><i class="fa-solid fa-money-bill-wave"></i></span>
+                                <h2>Fees &amp; Extras</h2>
+                            </div>
 
+                            <div class="field-grid">
 
-                            <?php foreach ($group_categories as $category_code => $category): ?>
+                                <div class="field">
+                                    <span class="field-label"><?= $isInternational ? 'Entry Fee (Local, RM)' : 'Entry Fee (RM)' ?></span>
 
+                                    <?php if ($edit_mode): ?>
 
-                                <?php
+                                        <input type="text" name="tournament_fee" value="<?= htmlspecialchars($feeParts['local']) ?>">
 
-                                $is_selected = in_array(
-                                    $category['name'],
-                                    $selected_categories,
-                                    true
-                                );
+                                        <?php if ($feeParts['details'] !== null): ?>
+                                            <small class="locked-note">
+                                                Currently saved as: &ldquo;<?= htmlspecialchars($feeParts['details']) ?>&rdquo;.
+                                                Saving will keep only the RM and USD amounts.
+                                            </small>
+                                        <?php endif; ?>
 
-                                ?>
-
-
-                                <?php if ($edit_mode): ?>
-
-
-                                    <label class="checkbox-item">
-
-                                        <input
-                                            type="checkbox"
-                                            name="categories[]"
-                                            value="<?= htmlspecialchars($category['name']) ?>"
-                                            <?= $is_selected ? 'checked' : '' ?>
-                                            <?= $group_type !== $category_type ? 'disabled' : '' ?>
-                                        >
-
-                                        <span>
-                                            <?= htmlspecialchars($category['name']) ?>
+                                    <?php else: ?>
+                                        <span class="field-value fee-value <?= $feeParts['local'] === '' ? 'empty' : '' ?>">
+                                            <?= htmlspecialchars($feeParts['local'] !== '' ? $feeParts['local'] : 'Not specified') ?>
                                         </span>
-
-                                    </label>
-
-
-                                <?php else: ?>
+                                    <?php endif; ?>
+                                </div>
 
 
-                                    <label class="checkbox-item <?= $is_selected ? '' : 'unselected' ?>">
+                                <!-- USD fee: international tournaments only -->
 
-                                        <input
-                                            type="checkbox"
-                                            disabled
-                                            <?= $is_selected ? 'checked' : '' ?>
-                                        >
+                                <?php if ($edit_mode || $isInternational): ?>
 
-                                        <span>
-                                            <?= htmlspecialchars($category['name']) ?>
-                                        </span>
+                                    <div class="field usd-fee-row" <?= $isInternational ? '' : 'hidden' ?>>
+                                        <span class="field-label">Entry Fee (Foreign, USD)</span>
 
-                                    </label>
+                                        <?php if ($edit_mode): ?>
 
+                                            <input
+                                                type="text"
+                                                id="tournament_fee_usd"
+                                                name="tournament_fee_usd"
+                                                value="<?= htmlspecialchars($feeParts['foreign'] ?? '') ?>"
+                                                placeholder="e.g. USD 60.00"
+                                                <?= $isInternational ? '' : 'disabled' ?>
+                                            >
+
+                                            <small class="locked-note">
+                                                Fill in the RM fee, the USD fee, or both. With both, Malaysian players
+                                                pay RM and foreign players pay USD.
+                                            </small>
+
+                                        <?php else: ?>
+                                            <span class="field-value fee-value <?= ($feeParts['foreign'] ?? '') === '' ? 'empty' : '' ?>">
+                                                <?= htmlspecialchars(($feeParts['foreign'] ?? '') !== '' ? $feeParts['foreign'] : 'Not specified') ?>
+                                            </span>
+                                        <?php endif; ?>
+                                    </div>
 
                                 <?php endif; ?>
 
 
-                            <?php endforeach; ?>
+                                <div class="field">
+                                    <span class="field-label">T-Shirt Sizes</span>
+
+                                    <?php if ($edit_mode): ?>
+                                        <input type="text" name="tournament_tshirt_size"
+                                               value="<?= htmlspecialchars($tournament['tournament_tshirt_size']) ?>"
+                                               placeholder="e.g. S,M,L,XL">
+                                    <?php elseif (!empty($tournament['tournament_tshirt_size'])): ?>
+                                        <span class="field-value size-list">
+                                            <?php foreach (array_filter(array_map('trim', preg_split('/[,;]/', $tournament['tournament_tshirt_size']))) as $size): ?>
+                                                <span class="size-chip"><?= htmlspecialchars($size) ?></span>
+                                            <?php endforeach; ?>
+                                        </span>
+                                    <?php else: ?>
+                                        <span class="field-value empty">Not specified</span>
+                                    <?php endif; ?>
+                                </div>
+
+                                <div class="field field-wide">
+                                    <span class="field-label">Detail Link</span>
+
+                                    <?php if ($edit_mode): ?>
+                                        <input type="url" name="tournament_detail_link"
+                                               value="<?= htmlspecialchars($tournament['tournament_detail_link']) ?>"
+                                               placeholder="https://">
+                                    <?php elseif (!empty($tournament['tournament_detail_link'])): ?>
+                                        <a class="field-value detail-link" href="<?= htmlspecialchars($tournament['tournament_detail_link']) ?>" target="_blank">
+                                            <?= htmlspecialchars($tournament['tournament_detail_link']) ?>
+                                            <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                                        </a>
+                                    <?php else: ?>
+                                        <span class="field-value empty">Not specified</span>
+                                    <?php endif; ?>
+                                </div>
+
+                            </div>
+
+                        </section>
 
 
-                        </div>
+                        <!-- ABOUT -->
+
+                        <section class="card">
+
+                            <div class="card-header">
+                                <span class="card-icon"><i class="fa-solid fa-align-left"></i></span>
+                                <h2>About</h2>
+                            </div>
+
+                            <?php if ($edit_mode): ?>
+
+                                <textarea name="tournament_description" rows="6"><?= htmlspecialchars($tournament['tournament_description']) ?></textarea>
+
+                            <?php elseif (trim($tournament['tournament_description']) !== ''): ?>
+
+                                <div class="description"><?= nl2br(htmlspecialchars($tournament['tournament_description'])) ?></div>
+
+                            <?php else: ?>
+
+                                <p class="field-value empty">No description.</p>
+
+                            <?php endif; ?>
+
+                        </section>
+
+                    </div>
 
 
-                    <?php endforeach; ?>
 
-                </section>
+                    <!-- =====================================================
+                        RIGHT: categories and registration fields
+                    ====================================================== -->
 
-
-                <!-- =========================================================
-                    REGISTRATION FIELDS
-                ========================================================== -->
-
-                <section class="form-section">
-
-                    <h2>Registration Details Needed</h2>
-
-                    <p class="section-description">
-                        Information required from players during registration.
-                    </p>
+                    <div class="details-side">
 
 
-                    <div class="checkbox-grid">
+                        <!-- CATEGORIES -->
+
+                        <section class="card">
+
+                            <div class="card-header">
+                                <span class="card-icon"><i class="fa-solid fa-trophy"></i></span>
+                                <h2>Categories</h2>
+                                <?php if (!$edit_mode): ?>
+                                    <span class="card-count"><?= count($selected_categories) ?></span>
+                                <?php endif; ?>
+                            </div>
 
 
-                        <?php foreach ($registration_options as $field_name => $field_label): ?>
+                            <!-- CATEGORY TYPE -->
+
+                            <div class="field category-type-group">
+
+                                <span class="field-label">Category Type</span>
+
+                                <?php if ($edit_mode && $category_type_locked): ?>
+
+                                    <span class="field-value locked-value">
+                                        <i class="fa-solid fa-lock"></i>
+                                        <?= htmlspecialchars($category_type) ?>
+                                    </span>
+
+                                    <small class="locked-note">
+                                        The category type can't be changed once it is set.
+                                    </small>
+
+                                <?php elseif ($edit_mode): ?>
+
+                                    <select id="category_type" name="category_type" class="styled-select" onchange="showCategoryType()" required>
+                                        <option value="">Select category type</option>
+                                        <option value="Junior" <?= $category_type === 'Junior' ? 'selected' : '' ?>>Junior</option>
+                                        <option value="PSA" <?= $category_type === 'PSA' ? 'selected' : '' ?>>PSA</option>
+                                    </select>
+
+                                <?php else: ?>
+
+                                    <span class="field-value <?= $category_type === '' ? 'empty' : '' ?>">
+                                        <?= htmlspecialchars($category_type ?: 'Not set') ?>
+                                    </span>
+
+                                <?php endif; ?>
+
+                            </div>
 
 
                             <?php
 
-                            $is_selected = in_array(
-                                $field_name,
-                                $selected_registration_fields,
-                                true
-                            );
+                            $category_groups = [
+                                'Junior' => $all_categories,
+                                'PSA' => $psa_categories
+                            ];
 
                             ?>
 
 
                             <?php if ($edit_mode): ?>
 
+                                <p class="category-hint" <?= $category_type_locked ? 'hidden' : '' ?>>
+                                    Choose a category type to see its categories.
+                                </p>
 
-                                <label class="checkbox-item">
+                                <?php foreach ($category_groups as $group_type => $group_categories): ?>
 
-                                    <input
-                                        type="checkbox"
-                                        name="registration_fields[]"
-                                        value="<?= htmlspecialchars($field_name) ?>"
-                                        <?= $is_selected ? 'checked' : '' ?>
+                                    <?php
+                                    // Once the type is set, only that type's categories are shown
+                                    if ($category_type_locked && $group_type !== $category_type) {
+                                        continue;
+                                    }
+                                    ?>
+
+                                    <div
+                                        class="checkbox-list category-group"
+                                        data-category-type="<?= $group_type ?>"
+                                        <?= $group_type !== $category_type ? 'hidden' : '' ?>
                                     >
 
-                                    <span>
-                                        <?= htmlspecialchars($field_label) ?>
-                                    </span>
+                                        <?php foreach ($group_categories as $category_code => $category): ?>
 
-                                </label>
+                                            <label class="checkbox-item">
 
+                                                <input
+                                                    type="checkbox"
+                                                    name="categories[]"
+                                                    value="<?= htmlspecialchars($category['name']) ?>"
+                                                    <?= in_array($category['name'], $selected_categories, true) ? 'checked' : '' ?>
+                                                    <?= $group_type !== $category_type ? 'disabled' : '' ?>
+                                                >
+
+                                                <span class="checkbox-code"><?= htmlspecialchars($category_code) ?></span>
+                                                <span><?= htmlspecialchars($category['name']) ?></span>
+
+                                            </label>
+
+                                        <?php endforeach; ?>
+
+                                    </div>
+
+                                <?php endforeach; ?>
+
+                            <?php elseif ($selected_category_chips): ?>
+
+                                <div class="chip-list">
+                                    <?php foreach ($selected_category_chips as $code => $name): ?>
+                                        <span class="chip <?= strpos($code, 'G') === 0 || $code === 'WOMEN' ? 'chip-girls' : 'chip-boys' ?>" title="<?= htmlspecialchars($name) ?>">
+                                            <?= htmlspecialchars($code) ?>
+                                        </span>
+                                    <?php endforeach; ?>
+                                </div>
 
                             <?php else: ?>
 
-
-                                <label class="checkbox-item <?= $is_selected ? '' : 'unselected' ?>">
-
-                                    <input
-                                        type="checkbox"
-                                        disabled
-                                        <?= $is_selected ? 'checked' : '' ?>
-                                    >
-
-                                    <span>
-                                        <?= htmlspecialchars($field_label) ?>
-                                    </span>
-
-                                </label>
-
+                                <p class="field-value empty">No categories selected.</p>
 
                             <?php endif; ?>
 
+                        </section>
 
-                        <?php endforeach; ?>
 
+                        <!-- REGISTRATION FIELDS -->
+
+                        <section class="card">
+
+                            <div class="card-header">
+                                <span class="card-icon"><i class="fa-solid fa-clipboard-list"></i></span>
+                                <h2>Registration Fields</h2>
+                                <?php if (!$edit_mode): ?>
+                                    <span class="card-count"><?= $registration_selected_count ?>/<?= count($registration_options) ?></span>
+                                <?php endif; ?>
+                            </div>
+
+                            <p class="card-description">Information players fill in when they register.</p>
+
+                            <?php if ($edit_mode): ?>
+
+                                <div class="checkbox-list two-columns">
+
+                                    <?php foreach ($registration_options as $field_name => $field_label): ?>
+
+                                        <label class="checkbox-item">
+
+                                            <input
+                                                type="checkbox"
+                                                name="registration_fields[]"
+                                                value="<?= htmlspecialchars($field_name) ?>"
+                                                <?= in_array($field_name, $selected_registration_fields, true) ? 'checked' : '' ?>
+                                            >
+
+                                            <span><?= htmlspecialchars($field_label) ?></span>
+
+                                        </label>
+
+                                    <?php endforeach; ?>
+
+                                </div>
+
+                            <?php elseif ($registration_selected_count > 0): ?>
+
+                                <div class="chip-list">
+                                    <?php foreach ($registration_options as $field_name => $field_label): ?>
+                                        <?php if (in_array($field_name, $selected_registration_fields, true)): ?>
+                                            <span class="chip chip-field">
+                                                <i class="fa-solid fa-check"></i>
+                                                <?= htmlspecialchars($field_label) ?>
+                                            </span>
+                                        <?php endif; ?>
+                                    <?php endforeach; ?>
+                                </div>
+
+                            <?php else: ?>
+
+                                <p class="field-value empty">No registration fields selected.</p>
+
+                            <?php endif; ?>
+
+                        </section>
 
                     </div>
 
-                </section>
+                </div>
+
 
 
                 <!-- =========================================================
-                    ACTIONS
+                    SAVE BAR (edit mode)
                 ========================================================== -->
 
-                <div class="form-actions">
+                <?php if ($edit_mode): ?>
 
+                    <div class="save-bar">
 
-                    <?php if ($edit_mode): ?>
+                        <span class="save-bar-text">
+                            <i class="fa-solid fa-pen"></i>
+                            Editing <strong><?= htmlspecialchars($tournament['tournament_name']) ?></strong>
+                        </span>
 
+                        <div class="save-bar-actions">
 
-                        <a
-                            class="cancel-btn"
-                            href="admin_view_tournaments.php?id=<?= (int)$tournamentID ?>"
-                        >
-                            Cancel
-                        </a>
+                            <a class="secondary-btn" href="admin_view_tournaments.php?id=<?= (int)$tournamentID ?>">
+                                Cancel
+                            </a>
 
+                            <button type="submit" name="save_changes" class="primary-btn">
+                                <i class="fa-solid fa-floppy-disk"></i>
+                                Save Changes
+                            </button>
 
-                        <button
-                            type="submit"
-                            name="save_changes"
-                            class="update-btn"
-                        >
-                            Save Changes
-                        </button>
+                        </div>
 
+                    </div>
 
-                    <?php else: ?>
-
-
-                        <a
-                            class="cancel-btn"
-                            href="admin_index.php"
-                        >
-                            Back
-                        </a>
-
-
-                        <a
-                            class="update-btn"
-                            href="admin_view_tournaments.php?id=<?= (int)$tournament['tournamentID'] ?>&edit=1"
-                        >
-                            Update
-                        </a>
-
-
-                    <?php endif; ?>
-
-
-                </div>
-
+                <?php endif; ?>
 
             </form>
 
 
-            <?php else: ?>
+        <?php else: ?>
 
 
-                <div class="not-found">
+            <div class="not-found">
 
-                    <h1>Tournament not found</h1>
+                <h1>Tournament not found</h1>
 
-                    <p>
-                        Please select a valid tournament from the dashboard.
-                    </p>
+                <p>Please select a valid tournament from the dashboard.</p>
 
-                    <a
-                        class="cancel-btn"
-                        href="admin_index.php"
-                    >
-                        Back to Dashboard
-                    </a>
+                <a class="secondary-btn" href="admin_index.php">
+                    Back to Dashboard
+                </a>
 
-                </div>
+            </div>
 
 
-            <?php endif; ?>
-
+        <?php endif; ?>
 
     </main>
 
@@ -1423,6 +1405,29 @@ if ($tournament && !empty($tournament['registration_field'])) {
 
             // International: RM only, USD only or both
             input.required = false;
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Picture Preview
+        |--------------------------------------------------------------------------
+        | Shows the chosen picture straight away; it is saved with the form.
+        */
+
+        function previewPicture(input) {
+
+            if (!input.files || !input.files[0]) {
+                return;
+            }
+
+            const reader = new FileReader();
+
+            reader.onload = function (event) {
+                document.getElementById('picturePreview').src = event.target.result;
+            };
+
+            reader.readAsDataURL(input.files[0]);
         }
 
 

@@ -1254,6 +1254,14 @@ function categoryBadge($registrationID, $category, $wrongCategories)
                     Manage Seeding
                 </a>
 
+
+                <a
+                    href="admin_draw.php?id=<?= $tournamentID ?>&category=<?= urlencode($selectedCategory) ?>"
+                    class="btn manage-seeding"
+                >
+                    Draw
+                </a>
+
             </div>
         </div>
 

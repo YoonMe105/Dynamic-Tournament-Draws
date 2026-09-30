@@ -14,8 +14,6 @@ if (!isset($_SESSION["userid"]) || $_SESSION["role"] !== "admin") {
 
 $creatorID = $_SESSION["userid"];
 
-echo "Creator ID: " . htmlspecialchars($creatorID) . "<br>";
-
 /*
 |--------------------------------------------------------------------------
 | Category List
@@ -636,10 +634,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 $message = 'Tournament created successfully!';
 
-                echo "<script>
-                    alert('Tournament created successfully!');
-                    window.location.href = 'index.php';
-                </script>";
+                header("Location: admin_view_tournaments.php?id=" . $tournamentID . "&created=1");
                 exit;
 
 
@@ -683,7 +678,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Create Tournament</title>
     <link href="./assets/style.css" rel="stylesheet" type="text/css">
-    <link rel="stylesheet" href="./assets/create_tournament.css">
+    <link rel="stylesheet" href="./assets/create_tournament.css?v=<?= filemtime(__DIR__ . '/assets/create_tournament.css') ?>">
 </head>
 
 <body>
@@ -702,490 +697,286 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 <main class="page-container">
 
-    <div class="page-title">
+    <div class="create-wrapper">
 
-        <h1>Create Tournament</h1>
+        <a href="admin_index.php" class="back-link">&larr; Back to Tournaments</a>
 
-        <p>
-            Create a new tournament and configure its categories
-            and registration requirements.
-        </p>
-
-    </div>
-
-
-    <?php if (!empty($message)): ?>
-
-        <div class="message success-message">
-            <?= htmlspecialchars($message) ?>
+        <div class="page-title">
+            <h1>Create Tournament</h1>
+            <p>Fill in the details below. Fields marked <span class="required">*</span> are required.</p>
         </div>
 
-    <?php endif; ?>
 
+        <?php if (!empty($error_message)): ?>
 
-    <?php if (!empty($error_message)): ?>
-
-        <div class="message error-message">
-            <?= htmlspecialchars($error_message) ?>
-        </div>
-
-    <?php endif; ?>
-
-
-    <form
-        method="POST"
-        enctype="multipart/form-data"
-    >
-
-
-        <!-- ==========================================
-             TOURNAMENT INFORMATION
-        =========================================== -->
-
-        <div class="form-section">
-
-            <h2>Tournament Information</h2>
-
-
-            <div class="form-group">
-
-                <label for="tournament_name">
-                    Tournament Name <span>*</span>
-                </label>
-
-                <input
-                    type="text"
-                    id="tournament_name"
-                    name="tournament_name"
-                    value="<?= htmlspecialchars($tournament_name) ?>"
-                    placeholder="Enter tournament name"
-                    required
-                >
-
+            <div class="error-message">
+                <?= htmlspecialchars($error_message) ?>
             </div>
 
+        <?php endif; ?>
 
-            <div class="form-row">
 
+        <form method="POST" enctype="multipart/form-data" id="createForm">
+
+
+            <!-- ==========================================
+                 1. BASIC INFORMATION
+            =========================================== -->
+
+            <section class="form-section">
+
+                <h2><span class="step">1</span> Basic Information</h2>
 
                 <div class="form-group">
+                    <label for="tournament_name">Tournament Name <span class="required">*</span></label>
+                    <input type="text" id="tournament_name" name="tournament_name"
+                           value="<?= htmlspecialchars($tournament_name) ?>"
+                           placeholder="Enter tournament name" required>
+                </div>
 
-                    <label for="tournament_startdate">
-                        Start Date & Time <span>*</span>
-                    </label>
+                <div class="form-group">
+                    <label for="tournament_description">Description <span class="required">*</span></label>
+                    <textarea id="tournament_description" name="tournament_description" rows="4"
+                              placeholder="Enter tournament description..." required><?= htmlspecialchars($tournament_description) ?></textarea>
+                </div>
 
-                    <input
-                        type="datetime-local"
-                        id="tournament_startdate"
-                        name="tournament_startdate"
-                        value="<?= htmlspecialchars(str_replace(' ', 'T', $tournament_startdate)) ?>"
-                        required
-                    >
+                <div class="form-group">
+                    <label for="tournament_picture">Tournament Picture</label>
+                    <input type="file" id="tournament_picture" name="tournament_picture"
+                           accept=".jpg,.jpeg,.png,.webp" onchange="previewPicture(this)">
+                    <small>JPG, JPEG, PNG or WEBP</small>
+                    <img id="picturePreview" class="picture-preview" src="" alt="Picture preview" hidden>
+                </div>
+
+            </section>
+
+
+            <!-- ==========================================
+                 2. DATES
+            =========================================== -->
+
+            <section class="form-section">
+
+                <h2><span class="step">2</span> Dates</h2>
+
+                <div class="form-row">
+
+                    <div class="form-group">
+                        <label for="tournament_startdate">Start Date &amp; Time <span class="required">*</span></label>
+                        <input type="datetime-local" id="tournament_startdate" name="tournament_startdate"
+                               value="<?= htmlspecialchars(str_replace(' ', 'T', $tournament_startdate)) ?>" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="tournament_enddate">End Date &amp; Time <span class="required">*</span></label>
+                        <input type="datetime-local" id="tournament_enddate" name="tournament_enddate"
+                               value="<?= htmlspecialchars(str_replace(' ', 'T', $tournament_enddate)) ?>" required>
+                    </div>
 
                 </div>
 
+                <div class="form-row">
 
-                <div class="form-group">
+                    <div class="form-group">
+                        <label for="tournament_deadline">Registration Deadline <span class="required">*</span></label>
+                        <input type="datetime-local" id="tournament_deadline" name="tournament_deadline"
+                               value="<?= htmlspecialchars(str_replace(' ', 'T', $tournament_deadline)) ?>" required>
+                    </div>
 
-                    <label for="tournament_enddate">
-                        End Date & Time <span>*</span>
-                    </label>
-
-                    <input
-                        type="datetime-local"
-                        id="tournament_enddate"
-                        name="tournament_enddate"
-                        value="<?= htmlspecialchars(str_replace(' ', 'T', $tournament_enddate)) ?>"
-                        required
-                    >
-
-                </div>
-
-
-            </div>
-
-
-            <div class="form-group">
-
-                <label for="tournament_deadline">
-                    Registration Deadline <span>*</span>
-                </label>
-
-                <input
-                    type="datetime-local"
-                    id="tournament_deadline"
-                    name="tournament_deadline"
-                    value="<?= htmlspecialchars(str_replace(' ', 'T', $tournament_deadline)) ?>"
-                    required
-                >
-
-            </div>
-
-
-            <div class="form-group">
-
-                <label for="tournament_description">
-                    Tournament Description <span>*</span>
-                </label>
-
-                <textarea
-                    id="tournament_description"
-                    name="tournament_description"
-                    placeholder="Enter tournament description..."
-                    required
-                ><?= htmlspecialchars($tournament_description) ?></textarea>
-
-            </div>
-
-
-            <div class="form-row">
-
-                <div class="form-group">
-
-                    <label for="tournament_location">
-                        Location <span>*</span>
-                    </label>
-
-                    <input
-                        type="text"
-                        id="tournament_location"
-                        name="tournament_location"
-                        value="<?= htmlspecialchars($tournament_location) ?>"
-                        placeholder="e.g. Kompleks Astaka, Petaling Jaya"
-                        required
-                    >
+                    <div class="form-group">
+                        <label for="tournament_age_cutoff">Age Cut-off Date</label>
+                        <input type="date" id="tournament_age_cutoff" name="tournament_age_cutoff"
+                               value="<?= htmlspecialchars($tournament_age_cutoff) ?>">
+                    </div>
 
                 </div>
 
+            </section>
+
+
+            <!-- ==========================================
+                 3. LOCATION & TYPE
+            =========================================== -->
+
+            <section class="form-section">
+
+                <h2><span class="step">3</span> Location &amp; Type</h2>
+
+                <div class="form-row">
+
+                    <div class="form-group">
+                        <label for="tournament_type">Tournament Type <span class="required">*</span></label>
+                        <input type="text" id="tournament_type" name="tournament_type"
+                               value="<?= htmlspecialchars($tournament_type) ?>"
+                               placeholder="e.g. Local or International"
+                               list="tournament_type_options" oninput="toggleUsdFee()" required>
+                        <datalist id="tournament_type_options">
+                            <option value="Local">
+                            <option value="International">
+                            <option value="National">
+                        </datalist>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="tournament_country">Country <span class="required">*</span></label>
+                        <select id="tournament_country" name="tournament_country" class="styled-select" required>
+                            <option value="">Select country</option>
+                            <?php foreach ($tournament_countries as $country): ?>
+                                <option value="<?= htmlspecialchars($country) ?>" <?= $tournament_country === $country ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($country) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                </div>
 
                 <div class="form-group">
+                    <label for="tournament_location">Location <span class="required">*</span></label>
+                    <input type="text" id="tournament_location" name="tournament_location"
+                           value="<?= htmlspecialchars($tournament_location) ?>"
+                           placeholder="e.g. Kompleks Astaka, Petaling Jaya" required>
+                </div>
 
-                    <label for="tournament_country">
-                        Country <span>*</span>
-                    </label>
+            </section>
 
-                    <select
-                        id="tournament_country"
-                        name="tournament_country"
-                        class="styled-select"
-                        required
-                    >
 
-                        <option value="">Select country</option>
+            <!-- ==========================================
+                 4. FEES & EXTRAS
+            =========================================== -->
 
-                        <?php foreach ($tournament_countries as $country): ?>
+            <section class="form-section">
 
-                            <option
-                                value="<?= htmlspecialchars($country) ?>"
-                                <?= $tournament_country === $country ? 'selected' : '' ?>
-                            >
-                                <?= htmlspecialchars($country) ?>
-                            </option>
+                <h2><span class="step">4</span> Fees &amp; Extras</h2>
+
+                <div class="form-row">
+
+                    <div class="form-group">
+                        <label for="tournament_fee">Entry Fee (RM) <span class="required rm-required">*</span></label>
+                        <input type="text" id="tournament_fee" name="tournament_fee"
+                               value="<?= htmlspecialchars($tournament_fee) ?>"
+                               placeholder="e.g. RM 100.00" required>
+                    </div>
+
+                    <div class="form-group usd-fee-row" <?= stripos($tournament_type, 'international') === false ? 'hidden' : '' ?>>
+                        <label for="tournament_fee_usd">Entry Fee (USD)</label>
+                        <input type="text" id="tournament_fee_usd" name="tournament_fee_usd"
+                               value="<?= htmlspecialchars($tournament_fee_usd) ?>"
+                               placeholder="e.g. USD 60.00">
+                    </div>
+
+                </div>
+
+                <small class="usd-fee-row form-note" <?= stripos($tournament_type, 'international') === false ? 'hidden' : '' ?>>
+                    International tournament: fill in the RM fee, the USD fee, or both.
+                    Malaysian players pay RM and foreign players pay USD.
+                </small>
+
+                <div class="form-row">
+
+                    <div class="form-group">
+                        <label for="tournament_tshirt_size">T-Shirt Sizes</label>
+                        <input type="text" id="tournament_tshirt_size" name="tournament_tshirt_size"
+                               value="<?= htmlspecialchars($tournament_tshirt_size) ?>"
+                               placeholder="e.g. S, M, L, XL">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="tournament_detail_link">Detail Link</label>
+                        <input type="url" id="tournament_detail_link" name="tournament_detail_link"
+                               value="<?= htmlspecialchars($tournament_detail_link) ?>"
+                               placeholder="https://example.com">
+                    </div>
+
+                </div>
+
+            </section>
+
+
+            <!-- ==========================================
+                 5. CATEGORIES
+            =========================================== -->
+
+            <section class="form-section">
+
+                <h2><span class="step">5</span> Categories <span class="required">*</span></h2>
+
+                <div class="form-group">
+                    <label for="category_type">Category Type <span class="required">*</span></label>
+                    <select id="category_type" name="category_type" class="styled-select" onchange="showCategoryType()" required>
+                        <option value="">Select category type</option>
+                        <option value="Junior" <?= $category_type === 'Junior' ? 'selected' : '' ?>>Junior</option>
+                        <option value="PSA" <?= $category_type === 'PSA' ? 'selected' : '' ?>>PSA</option>
+                    </select>
+                </div>
+
+                <p class="category-hint" <?= $category_type !== '' ? 'hidden' : '' ?>>
+                    Choose a category type to see its categories.
+                </p>
+
+                <?php foreach (['Junior' => $categories, 'PSA' => $psa_categories] as $group_type => $group_categories): ?>
+
+                    <div class="checkbox-grid category-group"
+                         data-category-type="<?= $group_type ?>"
+                         <?= $group_type !== $category_type ? 'hidden' : '' ?>>
+
+                        <?php foreach ($group_categories as $code => $category): ?>
+
+                            <label class="checkbox-item">
+                                <input type="checkbox" name="categories[]" value="<?= htmlspecialchars($code) ?>"
+                                    <?= $group_type === $category_type && in_array($code, $selected_categories, true) ? 'checked' : '' ?>
+                                    <?= $group_type !== $category_type ? 'disabled' : '' ?>>
+                                <span><?= htmlspecialchars($category['name']) ?></span>
+                            </label>
 
                         <?php endforeach; ?>
 
-                    </select>
+                    </div>
 
-                </div>
+                <?php endforeach; ?>
 
-            </div>
+            </section>
 
 
-            <div class="form-row">
+            <!-- ==========================================
+                 6. REGISTRATION DETAILS
+            =========================================== -->
 
-                <div class="form-group">
+            <section class="form-section">
 
-                    <label for="tournament_fee">
-                        Entry Fee (RM) <span>*</span>
-                    </label>
+                <h2><span class="step">6</span> Registration Details Needed</h2>
 
-                    <input
-                        type="text"
-                        id="tournament_fee"
-                        name="tournament_fee"
-                        value="<?= htmlspecialchars($tournament_fee) ?>"
-                        placeholder="e.g. RM 100.00"
-                        required
-                    >
+                <p class="section-description">Tick the information players must give when they register.</p>
 
-                </div>
+                <div class="checkbox-grid">
 
-
-                <div class="form-group">
-
-                    <label for="tournament_type">
-                        Tournament Type <span>*</span>
-                    </label>
-
-                    <input
-                        type="text"
-                        id="tournament_type"
-                        name="tournament_type"
-                        value="<?= htmlspecialchars($tournament_type) ?>"
-                        placeholder="e.g. Local or International"
-                        list="tournament_type_options"
-                        oninput="toggleUsdFee()"
-                        required
-                    >
-
-                    <datalist id="tournament_type_options">
-                        <option value="Local">
-                        <option value="International">
-                        <option value="National">
-                    </datalist>
-
-                </div>
-
-
-            </div>
-
-
-            <!-- USD fee: international tournaments only -->
-
-            <div
-                class="form-row usd-fee-row"
-                <?= stripos($tournament_type, 'international') === false ? 'hidden' : '' ?>
-            >
-
-                <div class="form-group">
-
-                    <label for="tournament_fee_usd">
-                        Entry Fee (USD)
-                    </label>
-
-                    <input
-                        type="text"
-                        id="tournament_fee_usd"
-                        name="tournament_fee_usd"
-                        value="<?= htmlspecialchars($tournament_fee_usd) ?>"
-                        placeholder="e.g. USD 120.00"
-                    >
-
-                    <small>
-                        Fill in the RM fee, the USD fee, or both. With both, Malaysian players
-                        pay RM and foreign players pay USD (saved as &ldquo;Local: RM120.00, Foreign: USD 60.00&rdquo;).
-                    </small>
-
-                </div>
-
-            </div>
-
-
-            <div class="form-row">
-
-
-                <div class="form-group">
-
-                    <label for="tournament_age_cutoff">
-                        Age Cutoff Date
-                    </label>
-
-                    <input
-                        type="date"
-                        id="tournament_age_cutoff"
-                        name="tournament_age_cutoff"
-                        value="<?= htmlspecialchars($tournament_age_cutoff) ?>"
-                    >
-
-                </div>
-
-
-                <div class="form-group">
-
-                    <label for="tournament_tshirt_size">
-                        T-Shirt Size Information
-                    </label>
-
-                    <input
-                        type="text"
-                        id="tournament_tshirt_size"
-                        name="tournament_tshirt_size"
-                        value="<?= htmlspecialchars($tournament_tshirt_size) ?>"
-                        placeholder="e.g. S, M, L, XL"
-                    >
-
-                </div>
-
-
-            </div>
-
-
-            <div class="form-group">
-
-                <label for="tournament_detail_link">
-                    Tournament Detail Link
-                </label>
-
-                <input
-                    type="url"
-                    id="tournament_detail_link"
-                    name="tournament_detail_link"
-                    value="<?= htmlspecialchars($tournament_detail_link) ?>"
-                    placeholder="https://example.com"
-                >
-
-            </div>
-
-
-            <div class="form-group">
-
-                <label for="tournament_picture">
-                    Tournament Picture
-                </label>
-
-                <input
-                    type="file"
-                    id="tournament_picture"
-                    name="tournament_picture"
-                    accept=".jpg,.jpeg,.png,.webp"
-                >
-
-                <small>
-                    Allowed formats: JPG, JPEG, PNG, WEBP
-                </small>
-
-            </div>
-
-        </div>
-
-
-        <!-- ==========================================
-             CATEGORIES
-        =========================================== -->
-
-        <div class="form-section">
-
-            <h2>Categories</h2>
-
-            <p class="section-description">
-                Select the categories available for this tournament.
-            </p>
-
-
-            <div class="form-group category-type-group">
-
-                <label for="category_type">
-                    Category Type <span>*</span>
-                </label>
-
-                <select
-                    id="category_type"
-                    name="category_type"
-                    class="styled-select"
-                    onchange="showCategoryType()"
-                    required
-                >
-
-                    <option value="">Select category type</option>
-
-                    <option value="Junior" <?= $category_type === 'Junior' ? 'selected' : '' ?>>
-                        Junior
-                    </option>
-
-                    <option value="PSA" <?= $category_type === 'PSA' ? 'selected' : '' ?>>
-                        PSA
-                    </option>
-
-                </select>
-
-            </div>
-
-
-            <p class="category-hint" <?= $category_type !== '' ? 'hidden' : '' ?>>
-                Choose a category type to see its categories.
-            </p>
-
-
-            <?php foreach (['Junior' => $categories, 'PSA' => $psa_categories] as $group_type => $group_categories): ?>
-
-                <div
-                    class="checkbox-grid category-group"
-                    data-category-type="<?= $group_type ?>"
-                    <?= $group_type !== $category_type ? 'hidden' : '' ?>
-                >
-
-                    <?php foreach ($group_categories as $code => $category): ?>
+                    <?php foreach ($registration_options as $field_name => $field_label): ?>
 
                         <label class="checkbox-item">
-
-                            <input
-                                type="checkbox"
-                                name="categories[]"
-                                value="<?= htmlspecialchars($code) ?>"
-                                <?= $group_type === $category_type && in_array($code, $selected_categories, true) ? 'checked' : '' ?>
-                                <?= $group_type !== $category_type ? 'disabled' : '' ?>
-                            >
-
-                            <span>
-                                <?= htmlspecialchars($category['name']) ?>
-                            </span>
-
+                            <input type="checkbox" name="registration_fields[]" value="<?= htmlspecialchars($field_name) ?>"
+                                <?= in_array($field_name, $selected_registration_fields, true) ? 'checked' : '' ?>>
+                            <span><?= htmlspecialchars($field_label) ?></span>
                         </label>
 
                     <?php endforeach; ?>
 
                 </div>
 
-            <?php endforeach; ?>
-
-        </div>
+            </section>
 
 
-        <!-- ==========================================
-             REGISTRATION DETAILS
-        =========================================== -->
+            <!-- ==========================================
+                 BUTTONS
+            =========================================== -->
 
-        <div class="form-section">
-
-            <h2>Registration Details Needed</h2>
-
-            <p class="section-description">
-                Select the information that players must provide
-                when registering.
-            </p>
-
-
-            <div class="checkbox-grid">
-
-                <?php foreach ($registration_options as $field_name => $field_label): ?>
-
-                    <label class="checkbox-item">
-                        <input type="checkbox" name="registration_fields[]" value="<?= htmlspecialchars($field_name) ?>" <?= in_array($field_name, $selected_registration_fields, true) ? 'checked' : '' ?>>
-                        <span><?= htmlspecialchars($field_label) ?></span>
-                    </label>
-
-                <?php endforeach; ?>
-
+            <div class="form-actions">
+                <a href="admin_index.php" class="cancel-btn">Cancel</a>
+                <button type="submit" class="create-btn" id="createBtn">Create Tournament</button>
             </div>
 
-        </div>
+        </form>
 
-
-        <!-- ==========================================
-             BUTTONS
-        =========================================== -->
-
-        <div class="form-actions">
-
-            <a
-                href="admin_index.php"
-                class="cancel-btn"
-            >
-                Cancel
-            </a>
-
-
-            <button
-                type="submit"
-                class="create-btn"
-            >
-                Create Tournament
-            </button>
-
-        </div>
-
-
-    </form>
+    </div>
 
 </main>
 
@@ -1211,15 +1002,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         const isInternational = document.getElementById('tournament_type')
             .value.toLowerCase().includes('international');
 
-        const row = document.querySelector('.usd-fee-row');
         const input = document.getElementById('tournament_fee_usd');
 
-        row.hidden = !isInternational;
+        document.querySelectorAll('.usd-fee-row').forEach(function (row) {
+            row.hidden = !isInternational;
+        });
+
         input.disabled = !isInternational;
 
         // International: RM only, USD only or both (checked when saving)
         input.required = false;
         document.getElementById('tournament_fee').required = !isInternational;
+        document.querySelector('.rm-required').hidden = isInternational;
     }
 
     document.addEventListener('DOMContentLoaded', toggleUsdFee);
@@ -1246,8 +1040,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             });
 
         });
-
     }
+
+    document.addEventListener('DOMContentLoaded', showCategoryType);
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Picture Preview
+    |--------------------------------------------------------------------------
+    */
+
+    function previewPicture(input) {
+
+        if (!input.files || !input.files[0]) {
+            return;
+        }
+
+        const reader = new FileReader();
+
+        reader.onload = function (event) {
+
+            const preview = document.getElementById('picturePreview');
+
+            preview.src = event.target.result;
+            preview.hidden = false;
+        };
+
+        reader.readAsDataURL(input.files[0]);
+    }
+
+
+    // Stop double submits
+    document.getElementById('createForm').addEventListener('submit', function () {
+
+        const button = document.getElementById('createBtn');
+
+        button.disabled = true;
+        button.textContent = 'Creating...';
+    });
 </script>
 
 </body>

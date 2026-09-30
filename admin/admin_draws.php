@@ -284,7 +284,7 @@ mysqli_stmt_close($nextStmt);
                                 <!-- MAKE DRAW BUTTON -->
 
                                 <a
-                                    href="make_draw.php?tournamentID=<?= $currentTournament['tournamentID'] ?>"
+                                    href="admin_draw.php?id=<?= $currentTournament['tournamentID'] ?>"
                                     class="view-btn"
                                 >
                                     <i class="fa-solid fa-table-cells"></i>
@@ -469,7 +469,7 @@ mysqli_stmt_close($nextStmt);
                                 <!-- MAKE DRAW BUTTON -->
 
                                 <a
-                                    href="make_draw.php?tournamentID=<?= $nextTournament['tournamentID'] ?>"
+                                    href="admin_draw.php?id=<?= $nextTournament['tournamentID'] ?>"
                                     class="view-btn"
                                 >
                                     <i class="fa-solid fa-table-cells"></i>

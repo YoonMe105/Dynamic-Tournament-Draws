@@ -43,7 +43,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $_SESSION["role"] = "admin";
             $_SESSION["admin_name"] = $admin["admin_name"];
 
-            $redirect_url = "admin/admin_index.php";
+            $redirect_url = "admin/admin_dashboard.php";
             $login_success = true;
 
         } else {

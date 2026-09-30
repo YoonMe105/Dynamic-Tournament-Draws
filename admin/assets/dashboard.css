@@ -1,0 +1,468 @@
+/* =========================================
+   ADMIN DASHBOARD
+   Same look as the tournaments page: grey page, white rounded panels,
+   navy headings.
+========================================= */
+
+.dashboard-page {
+    background: #e9e9e9;
+    padding: 24px 28px 60px;
+    color: #1f2433;
+}
+
+
+/* =========================================
+   HEADER
+========================================= */
+
+.dash-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 18px;
+    margin-bottom: 22px;
+}
+
+.dash-date {
+    margin: 0 0 4px;
+    color: #6b7280;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.dash-header h1 {
+    margin: 0;
+    color: #10185f;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 34px;
+}
+
+.dash-subtitle {
+    margin: 6px 0 0;
+    color: #4a5068;
+    font-size: 15px;
+}
+
+.dash-subtitle strong {
+    color: #c2410c;
+}
+
+.dash-header-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.btn-primary,
+.btn-outline {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 46px;
+    padding: 0 20px;
+    border-radius: 25px;
+    font-size: 15px;
+    font-weight: 700;
+    text-decoration: none;
+    transition: 0.2s ease;
+}
+
+.btn-primary {
+    background: #10185f;
+    border: 2px solid #10185f;
+    color: #ffffff;
+}
+
+.btn-primary:hover {
+    background: #172276;
+    border-color: #172276;
+}
+
+.btn-outline {
+    background: #ffffff;
+    border: 2px solid #10185f;
+    color: #10185f;
+}
+
+.btn-outline:hover {
+    background: #eef0f8;
+}
+
+
+/* =========================================
+   ICONS & TONES
+========================================= */
+
+.stat-icon {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    font-size: 17px;
+}
+
+.tone-green  { background: #e3f4e8; color: #1f7a3f; }
+.tone-amber  { background: #fff1d6; color: #a15c07; }
+.tone-blue   { background: #e7ecff; color: #2a3f9e; }
+.tone-purple { background: #f3e8f1; color: #993d86; }
+.tone-red    { background: #fde8e8; color: #b42318; }
+
+
+/* =========================================
+   STAT TILES
+========================================= */
+
+.stat-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 18px;
+    margin-bottom: 30px;
+}
+
+.stat-tile {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    grid-template-rows: auto auto;
+    column-gap: 14px;
+    align-items: center;
+    padding: 20px 22px;
+    background: #ffffff;
+    border-radius: 20px;
+    color: inherit;
+    text-decoration: none;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.stat-tile .stat-icon {
+    grid-row: 1 / 3;
+    width: 48px;
+    height: 48px;
+    font-size: 20px;
+}
+
+a.stat-tile:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 22px rgba(16, 24, 95, 0.1);
+}
+
+.stat-number {
+    color: #10185f;
+    font-size: 30px;
+    font-weight: 800;
+    line-height: 1;
+}
+
+.stat-label {
+    margin-top: 4px;
+    color: #6b7280;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+
+/* =========================================
+   PANELS
+========================================= */
+
+.section-heading {
+    margin: 0 0 14px;
+    color: #10185f;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 24px;
+}
+
+.panel {
+    min-width: 0;
+    padding: 20px 22px;
+    background: #ffffff;
+    border-radius: 20px;
+}
+
+.panel-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+.panel-header h3 {
+    flex: 1;
+    margin: 0;
+    color: #10185f;
+    font-size: 17px;
+}
+
+.count-badge {
+    min-width: 32px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    background: #f0f1f4;
+    color: #6b7280;
+    font-size: 13px;
+    font-weight: 800;
+    text-align: center;
+}
+
+.all-clear {
+    margin: 0;
+    padding: 18px 0 6px;
+    color: #6b7280;
+    font-size: 14px;
+}
+
+.all-clear i {
+    margin-right: 6px;
+    color: #1f9d55;
+}
+
+.more-items {
+    margin: 10px 0 0;
+    color: #6b7280;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+
+/* =========================================
+   NEEDS YOUR ATTENTION
+========================================= */
+
+.attention-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 18px;
+    margin-bottom: 30px;
+}
+
+.item-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.item-list a,
+.timeline a {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    padding: 8px 10px;
+    margin: 0 -10px;
+    border-radius: 10px;
+    color: inherit;
+    text-decoration: none;
+    transition: background 0.2s ease;
+}
+
+.item-list a:hover,
+.timeline a:hover {
+    background: #f4f5fa;
+}
+
+.item-main {
+    color: #1f2433;
+    font-size: 14px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.item-main strong {
+    color: #10185f;
+}
+
+.item-note {
+    display: block;
+    color: #b42318;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.item-sub {
+    color: #6b7280;
+    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+
+/* =========================================
+   BOTTOM: RECENT | NEXT 7 DAYS + MISSING
+========================================= */
+
+.bottom-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+    gap: 18px;
+    align-items: start;
+}
+
+.side-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    min-width: 0;
+}
+
+
+/* ---------- Recent registrations ---------- */
+
+.table-wrap {
+    overflow-x: auto;
+}
+
+.recent-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.recent-table th {
+    padding: 10px 12px;
+    border-bottom: 1px solid #e7e9f0;
+    color: #6b7280;
+    font-size: 12px;
+    font-weight: 700;
+    text-align: left;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    white-space: nowrap;
+}
+
+.recent-table td {
+    padding: 11px 12px;
+    border-bottom: 1px solid #f0f1f5;
+    white-space: nowrap;
+}
+
+.recent-table tbody tr {
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.recent-table tbody tr:hover {
+    background: #f6f7fb;
+}
+
+.recent-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.player-cell {
+    color: #10185f;
+    font-weight: 700;
+}
+
+.tournament-cell {
+    max-width: 220px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #4a5068;
+}
+
+.status-pill {
+    display: inline-block;
+    padding: 4px 9px;
+    border-radius: 20px;
+    background: #f0f1f4;
+    color: #6b7280;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.status-pill.good { background: #e3f4e8; color: #1f7a3f; }
+.status-pill.wait { background: #fff1d6; color: #a15c07; }
+.status-pill.bad  { background: #fde8e8; color: #b42318; }
+
+
+/* ---------- Next 7 days ---------- */
+
+.timeline {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.timeline li {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.timeline a {
+    flex: 1;
+    margin: 0;
+}
+
+.timeline-date {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex-shrink: 0;
+    width: 48px;
+    padding: 6px 0;
+    border-radius: 10px;
+    background: #eef0f8;
+    color: #10185f;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.timeline-date strong {
+    font-size: 18px;
+    line-height: 1.1;
+}
+
+
+/* =========================================
+   RESPONSIVE
+========================================= */
+
+@media (max-width: 1250px) {
+
+    .attention-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+}
+
+@media (max-width: 1100px) {
+
+    .stat-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .bottom-grid {
+        grid-template-columns: 1fr;
+    }
+
+}
+
+@media (max-width: 640px) {
+
+    .dashboard-page {
+        padding: 16px 14px 40px;
+    }
+
+    .dash-header h1 {
+        font-size: 26px;
+    }
+
+    .stat-grid,
+    .attention-grid {
+        grid-template-columns: 1fr;
+    }
+
+}
