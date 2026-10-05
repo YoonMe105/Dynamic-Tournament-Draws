@@ -1,6 +1,11 @@
 <?php
 
-require_once "../db.php";
+require_once '../db.php';
+require_once 'admin_auth.php';
+
+// Platform Admins, or the admin who created this tournament
+requireRegistrationAccess($_POST['registrationID'] ?? 0);
+require_once "admin_tournament_rankings.php";
 
 
 /*
@@ -157,6 +162,9 @@ $stmt->bind_param( "ssssi", $status, $payment_status, $category, $remarks, $regi
 if ($stmt->execute()) {
 
     $stmt->close();
+
+    // Category may have changed - keep tournament_rankings in step
+    syncRegistrationRanking($conn, $registrationID);
 
 
     /*

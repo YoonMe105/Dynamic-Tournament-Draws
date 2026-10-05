@@ -466,3 +466,33 @@ a.stat-tile:hover {
     }
 
 }
+
+
+/* ---------- Tournament registrations (newest tournaments) ---------- */
+
+.panel-link {
+    color: #10185f;
+    font-size: 13px;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.panel-link:hover {
+    text-decoration: underline;
+}
+
+.cell-sub {
+    display: block;
+    margin-top: 2px;
+    color: #8a8fa3;
+    font-size: 12px;
+}
+
+.recent-table .center {
+    text-align: center;
+}
+
+.recent-table td.creator-cell {
+    min-width: 130px;
+    white-space: normal;
+}

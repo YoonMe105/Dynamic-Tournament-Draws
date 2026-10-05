@@ -1,0 +1,275 @@
+/* =========================================
+   PLATFORM FEE PAYMENT
+========================================= */
+
+.payment-page {
+    padding: 20px 28px 60px;
+    color: #333;
+}
+
+.back-link {
+    display: inline-block;
+    margin: 4px 0 14px;
+    color: #993D86;
+    font-size: 14px;
+    font-weight: bold;
+    text-decoration: none;
+}
+
+.success-message,
+.error-message {
+    max-width: 560px;
+    margin-bottom: 16px;
+    padding: 13px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+}
+
+.success-message {
+    background: #eaf7ee;
+    border: 1px solid #c5e6cf;
+    color: #287a43;
+}
+
+.error-message {
+    background: #fdecec;
+    border: 1px solid #f3c2c2;
+    color: #a12a2a;
+}
+
+.pay-card {
+    max-width: 560px;
+    padding: 28px;
+    background: #ffffff;
+    border: 1px solid #dfe3e8;
+    border-radius: 14px;
+}
+
+.eyebrow {
+    margin: 0 0 6px;
+    color: #993D86;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+}
+
+.pay-card h1 {
+    margin: 0 0 18px;
+    color: #20283a;
+    font-size: 22px;
+}
+
+.amount-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 16px;
+}
+
+.amount {
+    color: #20283a;
+    font-size: 32px;
+    font-weight: 800;
+}
+
+.status {
+    padding: 5px 12px;
+    border-radius: 14px;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.status-unpaid {
+    background: #fff1d6;
+    color: #a15c07;
+}
+
+.status-paid {
+    background: #e3f4e8;
+    color: #1f7a3f;
+}
+
+.explain {
+    margin: 0 0 14px;
+    color: #4a5068;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.test-note {
+    margin: 0 0 16px;
+    padding: 10px 12px;
+    border: 1px dashed #e0b44c;
+    border-radius: 8px;
+    background: #fff9eb;
+    color: #8a5a00;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.paid-details {
+    list-style: none;
+    margin: 0 0 14px;
+    padding: 0;
+    font-size: 14px;
+}
+
+.paid-details li {
+    padding: 6px 0;
+    border-bottom: 1px solid #f0f1f5;
+}
+
+.paid-details span {
+    display: inline-block;
+    width: 100px;
+    color: #6b7280;
+}
+
+.muted {
+    color: #6b7280;
+    font-size: 14px;
+}
+
+.small {
+    font-size: 13px;
+}
+
+.pay-btn,
+.cancel-btn {
+    width: 100%;
+    height: 46px;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.pay-btn {
+    border: none;
+    background: #993D86;
+    color: #ffffff;
+}
+
+.pay-btn:hover {
+    background: #7f316f;
+}
+
+.cancel-btn {
+    margin-top: 10px;
+    border: 1px solid #d1d5db;
+    background: #ffffff;
+    color: #444;
+}
+
+
+/* ---------- Test checkout page ---------- */
+
+.checkout-body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #eef0f6;
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+.checkout-card {
+    width: 380px;
+    padding: 28px;
+    background: #ffffff;
+    border-radius: 16px;
+    box-shadow: 0 12px 30px rgba(20, 30, 70, 0.12);
+    text-align: center;
+}
+
+.test-banner {
+    margin: -8px 0 16px;
+    padding: 6px;
+    border-radius: 6px;
+    background: #fff1d6;
+    color: #a15c07;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+}
+
+.checkout-card h1 {
+    margin: 0 0 4px;
+    color: #10185f;
+}
+
+.checkout-amount {
+    margin: 4px 0 14px;
+    color: #20283a;
+    font-size: 30px;
+    font-weight: 800;
+}
+
+
+/* ---------- Test card form ---------- */
+
+.card-form {
+    margin-top: 6px;
+    text-align: left;
+}
+
+.card-label {
+    display: flex;
+    justify-content: space-between;
+    margin: 12px 0 6px;
+    color: #374151;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.card-input {
+    box-sizing: border-box;
+    width: 100%;
+    height: 44px;
+    padding: 0 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 15px;
+    letter-spacing: 0.5px;
+}
+
+.card-input:focus {
+    outline: none;
+    border-color: #993D86;
+    box-shadow: 0 0 0 3px rgba(153, 61, 134, 0.12);
+}
+
+.card-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.card-brand {
+    color: #10185f;
+    font-weight: 800;
+}
+
+.card-error {
+    margin: 12px 0 0;
+    padding: 9px 12px;
+    border-radius: 8px;
+    background: #fdecec;
+    color: #a12a2a;
+    font-size: 13px;
+}
+
+.card-form .pay-btn {
+    margin-top: 16px;
+}
+
+.test-cards {
+    margin: 14px 0 0;
+    color: #8a8fa3;
+    font-size: 12px;
+    line-height: 1.6;
+}

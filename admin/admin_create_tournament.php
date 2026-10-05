@@ -1,16 +1,13 @@
 <?php
-session_start();
+require_once '../db.php';
+require_once 'admin_auth.php';
 
-require '../db.php';
-
+// Platform Admins and Tournament Organizers can both create tournaments
 require_once '../fees.php';
+require_once '../platform_fee.php';
 
 $message = '';
 
-if (!isset($_SESSION["userid"]) || $_SESSION["role"] !== "admin") {
-    header("Location: ../login.php");
-    exit;
-}
 
 $creatorID = $_SESSION["userid"];
 
@@ -151,7 +148,8 @@ $tournament_enddate = '';
 $tournament_deadline = '';
 $tournament_description = '';
 $tournament_location = '';
-$tournament_country = '';
+// Starts with the organizer's own country (set when their admin account was added)
+$tournament_country = $currentAdmin['admin_country'] ?? '';
 $tournament_fee = '';
 $tournament_fee_usd = '';
 $tournament_type = '';
@@ -625,6 +623,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 /*
                 |--------------------------------------------------------------------------
+                | T_Software fee (Tournament Organizers only)
+                |--------------------------------------------------------------------------
+                | Registration stays closed until it's paid.
+                */
+
+                $needsPlatformFee = !isPlatformAdmin();
+
+                if ($needsPlatformFee && !createTournamentPlatformFee($conn, $tournamentID, $creatorID)) {
+                    throw new Exception('the platform fee could not be saved');
+                }
+
+
+                /*
+                |--------------------------------------------------------------------------
                 | Commit
                 |--------------------------------------------------------------------------
                 */
@@ -634,7 +646,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 $message = 'Tournament created successfully!';
 
-                header("Location: admin_view_tournaments.php?id=" . $tournamentID . "&created=1");
+                header($needsPlatformFee
+                    ? "Location: admin_platform_payment.php?id=" . $tournamentID . "&created=1"
+                    : "Location: admin_view_tournaments.php?id=" . $tournamentID . "&created=1");
                 exit;
 
 

@@ -353,19 +353,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $playerID
         );
 
+        // Registration and its ranking record are saved together
+        $conn->begin_transaction();
+
         if ($stmt->execute()) {
 
             $registrationID = $conn->insert_id;
 
             $stmt->close();
 
-            header("Location: tournament_payment.php?registrationID=" . $registrationID . "&registered=1");
-            exit();
+            if (saveRegistrationRankings($conn, $registrationID)) {
+
+                $conn->commit();
+
+                header("Location: tournament_payment.php?registrationID=" . $registrationID . "&registered=1");
+                exit();
+            }
+
+        } else {
+
+            $stmt->close();
         }
 
-        $error_message = 'Something went wrong. Please try again.';
+        $conn->rollback();
 
-        $stmt->close();
+        $error_message = 'Something went wrong. Please try again.';
 
         if ($attachment !== null) {
             @unlink('../uploads/registrations/' . $attachment);

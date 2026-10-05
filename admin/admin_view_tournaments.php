@@ -1,16 +1,13 @@
 <?php
-session_start();
+require_once '../db.php';
+require_once 'admin_auth.php';
+require_once 'admin_fee_banner.php';
 
-require '../db.php';
-
+// Any admin; Tournament Organizers are limited to their own tournaments below
 require_once 'admin_countries.php';
 
 require_once '../fees.php';
 
-if (!isset($_SESSION["userid"]) || !isset($_SESSION["role"]) || $_SESSION["role"] !== "admin") {
-    header("Location: ../login.php");
-    exit;
-}
 
 
 /*
@@ -208,11 +205,34 @@ if ($tournamentID > 0) {
 
 /*
 |--------------------------------------------------------------------------
+| Access
+|--------------------------------------------------------------------------
+| Tournament Organizers can open (and edit) only the tournaments they created.
+*/
+
+if ($tournament && !canAccessTournament($tournament['creatorID'])) {
+    denyAdminAccess("You can only manage tournaments you created.");
+}
+
+if (!$tournament && !isPlatformAdmin()) {
+    denyAdminAccess("You can only manage tournaments you created.");
+}
+
+$can_edit = true;
+
+
+/*
+|--------------------------------------------------------------------------
 | Save Tournament Changes
 |--------------------------------------------------------------------------
 */
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_changes'])) {
+
+    // Only the tournament opened (and checked) above can be saved
+    if (!$can_edit || !$tournament || intval($_POST['tournamentID'] ?? 0) !== $tournamentID) {
+        denyAdminAccess("You don't have permission to edit this tournament.");
+    }
 
     $tournamentID = intval($_POST['tournamentID']);
 
@@ -667,6 +687,8 @@ if ($tournament) {
                 Back to Tournament
             </a>
 
+
+            <?php platformFeeBanner($conn, $tournamentID); ?>
 
             <?php if (isset($_GET['created'])): ?>
 

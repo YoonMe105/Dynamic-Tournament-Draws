@@ -18,7 +18,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     ==========================================
     */
 
-    $admin_query = "SELECT adminid, admin_name, admin_password
+    $admin_query = "SELECT adminid, admin_name, admin_password, admin_role
                     FROM admins
                     WHERE adminid = ?";
 
@@ -43,7 +43,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $_SESSION["role"] = "admin";
             $_SESSION["admin_name"] = $admin["admin_name"];
 
-            $redirect_url = "admin/admin_dashboard.php";
+            // Tournament Organizers start on their tournament list
+            $redirect_url = $admin["admin_role"] === 'organizer'
+                ? "admin/admin_index.php"
+                : "admin/admin_dashboard.php";
             $login_success = true;
 
         } else {

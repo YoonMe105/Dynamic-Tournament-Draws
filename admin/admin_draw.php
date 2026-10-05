@@ -1,14 +1,12 @@
 <?php
 
-session_start();
+require_once '../db.php';
+require_once 'admin_auth.php';
 
-require_once "../db.php";
+// Platform Admins, or the admin who created this tournament
+requireTournamentAccess($_GET['id'] ?? 0);
 require_once "admin_draw_functions.php";
 
-if (!isset($_SESSION["role"]) || $_SESSION["role"] !== "admin") {
-    header("Location: ../login.php");
-    exit();
-}
 
 
 /*

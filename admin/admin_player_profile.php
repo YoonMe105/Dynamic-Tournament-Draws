@@ -1,8 +1,9 @@
 <?php
-session_start();
+require_once '../db.php';
+require_once 'admin_auth.php';
 
-require '../db.php';
-
+// Platform Admins, or the admin who created this tournament
+requirePlayerAccess(trim((string)($_GET['id'] ?? '')), $_GET['tournamentID'] ?? 0);
 $player_id = trim((string) ($_GET['id'] ?? ''));
 $tournamentID = trim((string) ($_GET['tournamentID'] ?? ''));
 $edit_mode = isset($_GET['edit']) && $_GET['edit'] === '1';
@@ -477,7 +478,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <?php else: ?>
 
                 <a class="details-btn" href="admin_each_tournament.php?id=<?= urlencode($tournamentID) ?>">Back</a>
-                <a class="details-btn update-btn" href="admin_player_profile.php?id=<?= urlencode($player['playerID']) ?>&edit=1">Update</a>
+                <a class="details-btn update-btn" href="admin_player_profile.php?id=<?= urlencode($player['playerID']) ?>&tournamentID=<?= urlencode($tournamentID) ?>&edit=1">Update</a>
 
             <?php endif; ?>
 

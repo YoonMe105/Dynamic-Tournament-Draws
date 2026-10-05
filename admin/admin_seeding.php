@@ -1,12 +1,11 @@
 <?php
-session_start();
+require_once '../db.php';
+require_once 'admin_auth.php';
 
-require '../db.php';
+// Platform Admins, or the admin who created this tournament
+requireTournamentAccess($_GET['id'] ?? 0);
+require 'admin_tournament_rankings.php';
 
-if (!isset($_SESSION["userid"]) || $_SESSION["role"] !== "admin") {
-    header("Location: ../login.php");
-    exit;
-}
 
 /*
 |--------------------------------------------------------------------------
@@ -93,15 +92,14 @@ $seedingRuleText = implode(', then ', array_map(function ($column) use ($ranking
 }, $seedingOrder));
 
 /*
-| ORDER BY for the rule: numeric rankings first (lowest = best),
-| missing or non-numeric rankings last.
+| ORDER BY for the rule: the rankings saved when each player registered
+| (tournament_rankings), lowest = best, players without that ranking last.
 */
 
 $seedingOrderSQL = implode(",\n", array_map(function ($column) {
     return "CASE
-                WHEN p.$column REGEXP '^[0-9]+$'
-                THEN CAST(p.$column AS UNSIGNED)
-                ELSE 999999
+                WHEN r.$column IS NULL THEN 999999
+                ELSE r.$column
             END ASC";
 }, $seedingOrder));
 
@@ -142,12 +140,12 @@ if (
         SELECT
             tr.registrationID,
             tr.category_registered,
-            p.world_ranking,
-            p.national_ranking,
-            p.ajss_ranking
+            r.world_ranking,
+            r.national_ranking,
+            r.ajss_ranking
         FROM tournament_register tr
-        JOIN players p
-            ON tr.playerID = p.playerID
+        LEFT JOIN tournament_rankings r
+            ON r.registrationID = tr.registrationID
         WHERE tr.tournamentID = ?
         AND tr.category_registered = ?
         AND UPPER(TRIM(tr.endorsement)) = 'ENDORSED'
@@ -212,6 +210,8 @@ if (
 
     $updateStmt->close();
     $seedStmt->close();
+
+    syncTournamentRankings($conn, $tournamentID);
 
     header(
         "Location: admin_seeding.php?id="
@@ -306,6 +306,8 @@ if (
         $updateStmt->close();
     }
 
+    syncTournamentRankings($conn, $tournamentID);
+
     header(
         "Location: admin_seeding.php?id="
         . $tournamentID
@@ -384,12 +386,14 @@ $playerStmt = $conn->prepare("
         p.playerID,
         p.player_full_name,
         p.player_nationality,
-        p.world_ranking,
-        p.national_ranking,
-        p.ajss_ranking
+        r.world_ranking,
+        r.national_ranking,
+        r.ajss_ranking
     FROM tournament_register tr
     JOIN players p
         ON tr.playerID = p.playerID
+    LEFT JOIN tournament_rankings r
+        ON r.registrationID = tr.registrationID
     WHERE tr.tournamentID = ?
     ORDER BY
         tr.category_registered ASC,
@@ -459,6 +463,9 @@ $playersResult = $playerStmt->get_result();
                             (no country set for this tournament &ndash; set it on the tournament page to apply the country rules)
                         </span>
                     <?php endif; ?>
+                    <span class="seeding-rule-note">
+                        &ndash; using each player's rankings as saved when they registered for this tournament.
+                    </span>
                 </p>
 
             </div>
@@ -539,6 +546,14 @@ $playersResult = $playerStmt->get_result();
                 target="_blank"
             >
                 Download Report
+            </a>
+
+
+            <a
+                href="admin_ranking_check.php?id=<?= $tournamentID ?>"
+                class="btn"
+            >
+                Check Rankings
             </a>
 
         </div>

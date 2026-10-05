@@ -151,3 +151,86 @@ main {
     padding: 0;
 }
 
+
+
+/* ---------- Logged-in admin (top bar) ---------- */
+
+.nav-right {
+	align-items: center;
+	display: flex;
+	gap: 22px;
+}
+
+.nav-user {
+	align-items: center;
+	border-left: 1px solid #3a4a68;
+	color: var(--white);
+	display: flex;
+	gap: 10px;
+	padding-left: 22px;
+	text-decoration: none;
+}
+
+.nav-user:hover strong {
+	text-decoration: underline;
+}
+
+.nav-avatar {
+	align-items: center;
+	background: var(--accent);
+	border-radius: 50%;
+	color: var(--navy);
+	display: inline-flex;
+	flex-shrink: 0;
+	font-size: 0.85rem;
+	font-weight: 800;
+	height: 38px;
+	justify-content: center;
+	overflow: hidden;
+	width: 38px;
+}
+
+.nav-avatar img {
+	height: 100%;
+	object-fit: cover;
+	width: 100%;
+}
+
+.nav-user-text {
+	display: flex;
+	flex-direction: column;
+	line-height: 1.2;
+	max-width: 180px;
+}
+
+.nav-user-text strong {
+	font-size: 0.9rem;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.nav-user-text small {
+	color: #b9c4d8;
+	font-size: 0.75rem;
+}
+
+@media (max-width: 760px) {
+
+	.nav-datetime {
+		display: none;
+	}
+
+	.nav-user-text {
+		display: none;
+	}
+
+}
+
+
+/* Line above My Profile, separating it from the main pages */
+aside li.menu-divider {
+	border-top: 1px solid var(--line);
+	margin-top: 16px;
+	padding-top: 16px;
+}

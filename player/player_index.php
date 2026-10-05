@@ -98,6 +98,9 @@ foreach ($tournaments as &$tournament) {
 
     $tournament['my_fee'] = playerFee($tournament, $player);
 
+    // Organizer's T_Software fee unpaid: shown, but registration isn't open yet
+    $tournament['opens_soon'] = platformFeeUnpaid($conn, $tournament['tournamentID']);
+
     $closingSoonCount += $tournament['closing_soon'] ? 1 : 0;
 }
 
@@ -319,6 +322,12 @@ $firstName = trim($player['player_first_name'] ?? ($_SESSION['firstname'] ?? '')
 
                                 <span class="badge badge-registered">
                                     <i class="fa-solid fa-circle-check"></i> Registered
+                                </span>
+
+                            <?php elseif ($tournament['opens_soon']): ?>
+
+                                <span class="badge badge-closing">
+                                    <i class="fa-regular fa-clock"></i> Registration opens soon
                                 </span>
 
                             <?php elseif ($tournament['closing_soon']): ?>

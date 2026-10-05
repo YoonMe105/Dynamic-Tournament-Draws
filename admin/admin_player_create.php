@@ -1,8 +1,8 @@
 <?php
-session_start();
+require_once '../db.php';
+require_once 'admin_auth.php';
 
-require '../db.php';
-
+requirePlatformAdmin();
 $message = '';
 $message_type = '';
 

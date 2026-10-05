@@ -62,7 +62,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'profi
     $fields = [
         'player_first_name', 'player_last_name', 'player_nationalid', 'player_passport',
         'player_dob', 'player_gender', 'player_nationality', 'player_contact', 'player_email',
-        'asf_member_no', 'spin_number'
+        'asf_member_no', 'spin_number', 'national_ranking', 'ajss_ranking', 'world_ranking'
     ];
 
     foreach ($fields as $field) {
@@ -90,6 +90,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'profi
     } elseif (!in_array($form['player_nationality'], $nationalities, true)) {
 
         $error_message = 'Please select your nationality.';
+    }
+
+
+    /*
+    | Rankings: a whole number (1, 2, 3 ...) or left empty
+    */
+
+    $rankingLabels = [
+        'national_ranking' => 'National ranking',
+        'ajss_ranking' => 'AJSS ranking',
+        'world_ranking' => '(PSA) World ranking'
+    ];
+
+    foreach ($rankingLabels as $field => $label) {
+
+        if ($error_message === '' && $form[$field] !== '' && !preg_match('/^[1-9][0-9]{0,5}$/', $form[$field])) {
+            $error_message = $label . ' must be a whole number, e.g. 12 (or leave it empty).';
+        }
     }
 
 
@@ -161,6 +179,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'profi
                 player_email = ?,
                 asf_member_no = ?,
                 spin_number = ?,
+                national_ranking = ?,
+                ajss_ranking = ?,
+                world_ranking = ?,
                 player_profile = ?
             WHERE playerID = ?
         ");
@@ -170,7 +191,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'profi
         }
 
         $stmt->bind_param(
-            "ssssssssssssss",
+            "sssssssssssssssss",
             $fullName,
             $form['player_first_name'],
             $form['player_last_name'],
@@ -183,6 +204,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'profi
             $form['player_email'],
             $form['asf_member_no'],
             $form['spin_number'],
+            $form['national_ranking'],
+            $form['ajss_ranking'],
+            $form['world_ranking'],
             $photo,
             $playerID
         );
@@ -510,24 +534,24 @@ function value($form, $key)
 
                     <div class="form-group">
                         <label for="national_ranking">National Ranking</label>
-                        <input type="text" id="national_ranking" value="<?= value($player, 'national_ranking') ?: '-' ?>" readonly class="readonly-input">
+                        <input type="text" id="national_ranking" name="national_ranking" inputmode="numeric" pattern="[1-9][0-9]{0,5}" maxlength="6" placeholder="e.g. 12" title="A whole number, e.g. 12" value="<?= value($form, 'national_ranking') ?>">
                     </div>
 
                     <div class="form-group">
                         <label for="ajss_ranking">AJSS Ranking</label>
-                        <input type="text" id="ajss_ranking" value="<?= value($player, 'ajss_ranking') ?: '-' ?>" readonly class="readonly-input">
+                        <input type="text" id="ajss_ranking" name="ajss_ranking" inputmode="numeric" pattern="[1-9][0-9]{0,5}" maxlength="6" placeholder="e.g. 12" title="A whole number, e.g. 12" value="<?= value($form, 'ajss_ranking') ?>">
                     </div>
 
                     <div class="form-group">
                         <label for="world_ranking">(PSA) World Ranking</label>
-                        <input type="text" id="world_ranking" value="<?= value($player, 'world_ranking') ?: '-' ?>" readonly class="readonly-input">
+                        <input type="text" id="world_ranking" name="world_ranking" inputmode="numeric" pattern="[1-9][0-9]{0,5}" maxlength="6" placeholder="e.g. 12" title="A whole number, e.g. 12" value="<?= value($form, 'world_ranking') ?>">
                     </div>
 
                 </div>
 
                 <p class="hint">
-                    <i class="fa-solid fa-lock"></i>
-                    Rankings are used for seeding and can only be updated by the organiser.
+                    <i class="fa-solid fa-circle-info"></i>
+                    Rankings are used for seeding. Enter your current ranking as a number, or leave it empty if you don't have one.
                 </p>
 
             </section>

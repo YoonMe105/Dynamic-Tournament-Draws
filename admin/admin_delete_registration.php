@@ -1,12 +1,14 @@
 <?php
 
-require_once "../db.php";
+require_once '../db.php';
+require_once 'admin_auth.php';
+
+// Platform Admins, or the admin who created this tournament
+requireRegistrationAccess($_GET['id'] ?? 0);
 
 $registrationID = isset($_GET['id'])
     ? intval($_GET['id'])
     : 0;
-
-echo $registrationID;
 
 if ($registrationID <= 0) {
 

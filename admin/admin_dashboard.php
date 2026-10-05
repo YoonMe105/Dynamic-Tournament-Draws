@@ -1,12 +1,9 @@
 <?php
-session_start();
-require '../db.php';
-require 'admin_age_check.php';
+require_once '../db.php';
+require_once 'admin_auth.php';
 
-if (!isset($_SESSION["role"]) || $_SESSION["role"] !== "admin") {
-    header("Location: ../login.php");
-    exit();
-}
+requirePlatformAdmin();
+
 
 
 /*
@@ -90,109 +87,22 @@ $stats = [
 
 /*
 |--------------------------------------------------------------------------
-| Needs Attention: payments to check (receipt uploaded)
+| Tournament Registrations: the newest tournaments created on the platform
 |--------------------------------------------------------------------------
+| Newest first (tournament IDs go up as tournaments are created), with who
+| created it and, for Tournament Organizers, whether the T_Software fee is paid.
 */
 
-$pendingPayments = fetchAll($conn, "
-    SELECT tr.registrationID, tr.category_registered, tr.payment_proof,
-           p.player_full_name, t.tournamentID, t.tournament_name
-    FROM tournament_register tr
-    JOIN players p ON p.playerID = tr.playerID
-    JOIN tournament t ON t.tournamentID = tr.tournamentID
-    WHERE UPPER(TRIM(tr.payment_status)) = 'PENDING'
-    ORDER BY tr.registrationID ASC
-");
-
-
-/*
-|--------------------------------------------------------------------------
-| Needs Attention: waiting for endorsement
-|--------------------------------------------------------------------------
-*/
-
-$notEndorsed = fetchAll($conn, "
-    SELECT tr.registrationID, tr.category_registered, tr.payment_status,
-           p.player_full_name, t.tournamentID, t.tournament_name
-    FROM tournament_register tr
-    JOIN players p ON p.playerID = tr.playerID
-    JOIN tournament t ON t.tournamentID = tr.tournamentID
-    WHERE UPPER(TRIM(tr.endorsement)) <> 'ENDORSED'
-    AND $activeTournament
-    ORDER BY t.tournament_startdate ASC, tr.registrationID ASC
-");
-
-
-/*
-|--------------------------------------------------------------------------
-| Needs Attention: players too old for their category
-|--------------------------------------------------------------------------
-*/
-
-$wrongCategories = [];
-
-$ageRows = fetchAll($conn, "
-    SELECT tr.registrationID, tr.category_registered,
-           p.player_full_name, p.player_dob,
-           t.tournamentID, t.tournament_name, t.tournament_age_cutoff
-    FROM tournament_register tr
-    JOIN players p ON p.playerID = tr.playerID
-    JOIN tournament t ON t.tournamentID = tr.tournamentID
-    WHERE $activeTournament
-    AND t.tournament_age_cutoff IS NOT NULL
-    ORDER BY t.tournament_startdate ASC
-");
-
-foreach ($ageRows as $row) {
-
-    $wrong = wrongAgeCategory($row['category_registered'], $row['player_dob'], $row['tournament_age_cutoff']);
-
-    if ($wrong !== null) {
-        $wrongCategories[] = $row + $wrong;
-    }
-}
-
-
-/*
-|--------------------------------------------------------------------------
-| Needs Attention: draws to make
-|--------------------------------------------------------------------------
-| Registration closed, tournament not finished, and a category with at
-| least 2 endorsed players but no draw yet.
-*/
-
-$drawsToMake = fetchAll($conn, "
-    SELECT t.tournamentID, t.tournament_name, t.tournament_startdate,
-           tr.category_registered, COUNT(*) AS players
-    FROM tournament_register tr
-    JOIN tournament t ON t.tournamentID = tr.tournamentID
-    WHERE t.tournament_deadline < NOW()
-    AND $activeTournament
-    AND UPPER(TRIM(tr.endorsement)) = 'ENDORSED'
-    AND NOT EXISTS (
-        SELECT 1 FROM matches m
-        WHERE m.tournamentID = tr.tournamentID
-        AND m.category_registered = tr.category_registered
-    )
-    GROUP BY t.tournamentID, tr.category_registered
-    HAVING COUNT(*) >= 2
-    ORDER BY t.tournament_startdate ASC, tr.category_registered ASC
-");
-
-
-/*
-|--------------------------------------------------------------------------
-| Recent Registrations
-|--------------------------------------------------------------------------
-*/
-
-$recentRegistrations = fetchAll($conn, "
-    SELECT tr.registrationID, tr.category_registered, tr.payment_status, tr.endorsement,
-           p.player_full_name, t.tournament_name
-    FROM tournament_register tr
-    JOIN players p ON p.playerID = tr.playerID
-    JOIN tournament t ON t.tournamentID = tr.tournamentID
-    ORDER BY tr.registrationID DESC
+$newTournaments = fetchAll($conn, "
+    SELECT t.tournamentID, t.tournament_name, t.tournament_type, t.tournament_country,
+           t.tournament_startdate, t.tournament_enddate, t.creatorID,
+           a.admin_name AS creator_name, a.admin_role AS creator_role,
+           pp.status AS fee_status, pp.amount AS fee_amount, pp.currency AS fee_currency,
+           (SELECT COUNT(*) FROM tournament_register tr WHERE tr.tournamentID = t.tournamentID) AS players
+    FROM tournament t
+    LEFT JOIN admins a ON a.adminID = t.creatorID COLLATE utf8mb4_general_ci
+    LEFT JOIN tournament_platform_payments pp ON pp.tournamentID = t.tournamentID
+    ORDER BY t.tournamentID DESC
     LIMIT 8
 ");
 
@@ -226,90 +136,7 @@ usort($thisWeek, function ($a, $b) {
 });
 
 
-/*
-|--------------------------------------------------------------------------
-| Missing Details (tournaments that haven't finished)
-|--------------------------------------------------------------------------
-*/
-
-$missingDetails = [];
-
-foreach (fetchAll($conn, "
-    SELECT t.tournamentID, t.tournament_name, t.tournament_age_cutoff,
-           t.tournament_country, t.tournament_picture,
-           (SELECT COUNT(*) FROM tournament_category c WHERE c.tournamentID = t.tournamentID) AS categories
-    FROM tournament t
-    WHERE $activeTournament
-    ORDER BY t.tournament_startdate ASC
-") as $row) {
-
-    $missing = [];
-
-    if ((int)$row['categories'] === 0) {
-        $missing[] = 'categories';
-    }
-
-    if (empty($row['tournament_age_cutoff'])) {
-        $missing[] = 'age cut-off';
-    }
-
-    if (empty($row['tournament_country'])) {
-        $missing[] = 'country';
-    }
-
-    $picture = trim($row['tournament_picture'] ?? '');
-
-    if ($picture === '' || strtoupper($picture) === 'NULL') {
-        $missing[] = 'picture';
-    }
-
-    if ($missing) {
-        $missingDetails[] = $row + ['missing' => $missing];
-    }
-}
-
-
-/*
-|--------------------------------------------------------------------------
-| Attention cards
-|--------------------------------------------------------------------------
-*/
-
-$attentionCards = [
-    [
-        'title' => 'Payments to check',
-        'icon' => 'fa-receipt',
-        'tone' => 'amber',
-        'items' => $pendingPayments,
-        'empty' => 'No receipts waiting.'
-    ],
-    [
-        'title' => 'Waiting for endorsement',
-        'icon' => 'fa-user-check',
-        'tone' => 'blue',
-        'items' => $notEndorsed,
-        'empty' => 'Everyone is endorsed.'
-    ],
-    [
-        'title' => 'Wrong category',
-        'icon' => 'fa-triangle-exclamation',
-        'tone' => 'red',
-        'items' => $wrongCategories,
-        'empty' => 'No age problems.'
-    ],
-    [
-        'title' => 'Draws to make',
-        'icon' => 'fa-sitemap',
-        'tone' => 'purple',
-        'items' => $drawsToMake,
-        'empty' => 'No draws waiting.'
-    ]
-];
-
-$attentionTotal = count($pendingPayments) + count($notEndorsed) + count($wrongCategories) + count($drawsToMake);
-
 $adminName = $_SESSION['admin_name'] ?? 'Admin';
-$attentionLimit = 5;
 
 ?>
 
@@ -349,13 +176,6 @@ $attentionLimit = 5;
             <div>
                 <p class="dash-date"><?= date('l, d F Y') ?></p>
                 <h1>Welcome back, <?= htmlspecialchars($adminName) ?></h1>
-                <p class="dash-subtitle">
-                    <?php if ($attentionTotal > 0): ?>
-                        You have <strong><?= $attentionTotal ?></strong> item<?= $attentionTotal === 1 ? '' : 's' ?> that need your attention.
-                    <?php else: ?>
-                        Everything is up to date.
-                    <?php endif; ?>
-                </p>
             </div>
 
             <div class="dash-header-actions">
@@ -411,113 +231,23 @@ $attentionLimit = 5;
 
 
         <!-- =========================
-            NEEDS YOUR ATTENTION
-        ========================== -->
-
-        <h2 class="section-heading">Needs your attention</h2>
-
-        <section class="attention-grid">
-
-            <?php foreach ($attentionCards as $index => $card): ?>
-
-                <article class="panel attention-card">
-
-                    <div class="panel-header">
-
-                        <span class="stat-icon tone-<?= $card['tone'] ?>"><i class="fa-solid <?= $card['icon'] ?>"></i></span>
-
-                        <h3><?= $card['title'] ?></h3>
-
-                        <span class="count-badge <?= $card['items'] ? 'tone-' . $card['tone'] : '' ?>">
-                            <?= count($card['items']) ?>
-                        </span>
-
-                    </div>
-
-
-                    <?php if (!$card['items']): ?>
-
-                        <p class="all-clear">
-                            <i class="fa-solid fa-circle-check"></i>
-                            <?= $card['empty'] ?>
-                        </p>
-
-                    <?php else: ?>
-
-                        <ul class="item-list">
-
-                            <?php foreach (array_slice($card['items'], 0, $attentionLimit) as $item): ?>
-
-                                <li>
-
-                                    <?php if ($index === 3): // draws ?>
-
-                                        <a href="admin_draw.php?id=<?= (int)$item['tournamentID'] ?>&category=<?= urlencode($item['category_registered']) ?>">
-                                            <span class="item-main">
-                                                <strong><?= htmlspecialchars($item['category_registered']) ?></strong>
-                                                &middot; <?= (int)$item['players'] ?> players
-                                            </span>
-                                            <span class="item-sub">
-                                                <?= htmlspecialchars($item['tournament_name']) ?>
-                                                &middot; starts <?= shortDate($item['tournament_startdate']) ?>
-                                            </span>
-                                        </a>
-
-                                    <?php else: ?>
-
-                                        <a href="admin_player_tournament_registration.php?id=<?= (int)$item['registrationID'] ?>">
-                                            <span class="item-main">
-                                                <strong><?= htmlspecialchars($item['player_full_name']) ?></strong>
-                                                &middot; <?= htmlspecialchars($item['category_registered']) ?>
-
-                                                <?php if ($index === 2): // wrong category ?>
-                                                    <span class="item-note">
-                                                        is <?= (int)$item['age'] ?>, must be under <?= (int)$item['max'] ?>
-                                                    </span>
-                                                <?php endif; ?>
-                                            </span>
-                                            <span class="item-sub"><?= htmlspecialchars($item['tournament_name']) ?></span>
-                                        </a>
-
-                                    <?php endif; ?>
-
-                                </li>
-
-                            <?php endforeach; ?>
-
-                        </ul>
-
-                        <?php if (count($card['items']) > $attentionLimit): ?>
-                            <p class="more-items">and <?= count($card['items']) - $attentionLimit ?> more</p>
-                        <?php endif; ?>
-
-                    <?php endif; ?>
-
-                </article>
-
-            <?php endforeach; ?>
-
-        </section>
-
-
-
-        <!-- =========================
             RECENT | THIS WEEK + MISSING DETAILS
         ========================== -->
 
         <div class="bottom-grid">
 
 
-            <!-- Recent registrations -->
+            <!-- Tournament registrations: newest tournaments created -->
 
             <section class="panel">
 
                 <div class="panel-header">
-                    <span class="stat-icon tone-blue"><i class="fa-solid fa-clock-rotate-left"></i></span>
-                    <h3>Recent registrations</h3>
+                    <span class="stat-icon tone-blue"><i class="fa-solid fa-trophy"></i></span>
+                    <h3>Tournament registrations</h3>
+                    <a class="panel-link" href="admin_index.php">All tournaments</a>
                 </div>
 
-                <?php if ($recentRegistrations): ?>
+                <?php if ($newTournaments): ?>
 
                     <div class="table-wrap">
 
@@ -525,37 +255,49 @@ $attentionLimit = 5;
 
                             <thead>
                                 <tr>
-                                    <th>Player</th>
                                     <th>Tournament</th>
-                                    <th>Category</th>
-                                    <th>Payment</th>
-                                    <th>Endorsement</th>
+                                    <th>Created by</th>
+                                    <th>Dates</th>
+                                    <th>T_Software fee</th>
+                                    <th class="center">Players</th>
                                 </tr>
                             </thead>
 
                             <tbody>
 
-                                <?php foreach ($recentRegistrations as $row): ?>
+                                <?php foreach ($newTournaments as $row): ?>
 
-                                    <?php
-                                    $payment = strtoupper(trim($row['payment_status'] ?? '')) ?: 'NOT PAID';
-                                    $endorsement = strtoupper(trim($row['endorsement'] ?? '')) ?: 'NOT ENDORSED';
-                                    ?>
+                                    <tr onclick="location.href='admin_each_tournament.php?id=<?= (int)$row['tournamentID'] ?>'">
 
-                                    <tr onclick="location.href='admin_player_tournament_registration.php?id=<?= (int)$row['registrationID'] ?>'">
-                                        <td class="player-cell"><?= htmlspecialchars($row['player_full_name']) ?></td>
-                                        <td class="tournament-cell" title="<?= htmlspecialchars($row['tournament_name']) ?>"><?= htmlspecialchars($row['tournament_name']) ?></td>
-                                        <td><?= htmlspecialchars($row['category_registered']) ?></td>
-                                        <td>
-                                            <span class="status-pill <?= $payment === 'PAID' ? 'good' : ($payment === 'PENDING' ? 'wait' : ($payment === 'REFUNDED' ? 'bad' : '')) ?>">
-                                                <?= htmlspecialchars($payment) ?>
-                                            </span>
+                                        <td class="tournament-cell" title="<?= htmlspecialchars($row['tournament_name']) ?>">
+                                            <span class="player-cell"><?= htmlspecialchars($row['tournament_name']) ?></span>
+                                            <small class="cell-sub">
+                                                <?= htmlspecialchars(strtoupper($row['tournament_type'])) ?>
+                                                <?= trim((string)$row['tournament_country']) !== '' ? '&middot; ' . htmlspecialchars(trim($row['tournament_country'])) : '' ?>
+                                            </small>
                                         </td>
-                                        <td>
-                                            <span class="status-pill <?= $endorsement === 'ENDORSED' ? 'good' : '' ?>">
-                                                <?= htmlspecialchars($endorsement) ?>
-                                            </span>
+
+                                        <td class="creator-cell">
+                                            <?= htmlspecialchars($row['creator_name'] ?? $row['creatorID']) ?>
+                                            <small class="cell-sub">
+                                                <?= $row['creator_role'] === 'organizer' ? 'Tournament Organizer' : ($row['creator_role'] === 'platform' ? 'Platform Admin' : htmlspecialchars($row['creatorID'])) ?>
+                                            </small>
                                         </td>
+
+                                        <td><?= shortDate($row['tournament_startdate']) ?></td>
+
+                                        <td>
+                                            <?php if ($row['fee_status'] === 'paid'): ?>
+                                                <span class="status-pill good">PAID</span>
+                                            <?php elseif ($row['fee_status'] === 'unpaid'): ?>
+                                                <span class="status-pill wait">UNPAID</span>
+                                            <?php else: ?>
+                                                <span class="status-pill">&ndash;</span>
+                                            <?php endif; ?>
+                                        </td>
+
+                                        <td class="center"><?= (int)$row['players'] ?></td>
+
                                     </tr>
 
                                 <?php endforeach; ?>
@@ -568,7 +310,7 @@ $attentionLimit = 5;
 
                 <?php else: ?>
 
-                    <p class="all-clear">No registrations yet.</p>
+                    <p class="all-clear">No tournaments yet.</p>
 
                 <?php endif; ?>
 
@@ -615,49 +357,6 @@ $attentionLimit = 5;
                     <?php else: ?>
 
                         <p class="all-clear">Nothing in the next 7 days.</p>
-
-                    <?php endif; ?>
-
-                </section>
-
-
-                <!-- Missing details -->
-
-                <section class="panel">
-
-                    <div class="panel-header">
-                        <span class="stat-icon tone-amber"><i class="fa-solid fa-pen-to-square"></i></span>
-                        <h3>Missing details</h3>
-                        <span class="count-badge <?= $missingDetails ? 'tone-amber' : '' ?>"><?= count($missingDetails) ?></span>
-                    </div>
-
-                    <?php if ($missingDetails): ?>
-
-                        <ul class="item-list">
-
-                            <?php foreach (array_slice($missingDetails, 0, $attentionLimit) as $row): ?>
-
-                                <li>
-                                    <a href="admin_view_tournaments.php?id=<?= (int)$row['tournamentID'] ?>&edit=1">
-                                        <span class="item-main"><strong><?= htmlspecialchars($row['tournament_name']) ?></strong></span>
-                                        <span class="item-sub">No <?= htmlspecialchars(implode(', ', $row['missing'])) ?></span>
-                                    </a>
-                                </li>
-
-                            <?php endforeach; ?>
-
-                        </ul>
-
-                        <?php if (count($missingDetails) > $attentionLimit): ?>
-                            <p class="more-items">and <?= count($missingDetails) - $attentionLimit ?> more</p>
-                        <?php endif; ?>
-
-                    <?php else: ?>
-
-                        <p class="all-clear">
-                            <i class="fa-solid fa-circle-check"></i>
-                            All tournaments are complete.
-                        </p>
 
                     <?php endif; ?>
 

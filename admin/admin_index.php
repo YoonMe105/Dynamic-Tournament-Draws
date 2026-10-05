@@ -1,16 +1,17 @@
 <?php
-session_start();
-require '../db.php';
-
-if (!isset($_SESSION["role"]) || $_SESSION["role"] !== "admin") {
-    header("Location: ../login.php");
-    exit();
-}
+require_once '../db.php';
+require_once 'admin_auth.php';
+require_once '../platform_fee.php';
 
 
 /* =========================
    LOAD TOURNAMENTS
 ========================= */
+
+// Tournament Organizers only see the tournaments they created
+$creatorFilter = isPlatformAdmin()
+    ? ""
+    : "WHERE t.creatorID = '" . $conn->real_escape_string($_SESSION['userid']) . "'";
 
 $tournaments_query = "SELECT
                           t.tournamentid,
@@ -26,6 +27,7 @@ $tournaments_query = "SELECT
                       FROM tournament t
                       LEFT JOIN tournament_register tr
                           ON tr.tournamentID = t.tournamentID
+                      $creatorFilter
                       GROUP BY t.tournamentID
                       ORDER BY t.tournament_startdate ASC";
 
@@ -37,14 +39,15 @@ if (!$tournaments_result) {
 
 
 /* =========================
-   SORT INTO SECTIONS
-   - Registration open: deadline not passed yet
-   - Current: started and not finished, or registration closed but not started yet
-   - Previous: already finished
+   SORT INTO THREE ROWS
+   1. Current:  not started yet - registration open, or closed and starting soon
+   2. Ongoing:  started and not finished
+   3. Previous: already finished
 ========================= */
 
 $open_tournaments = [];
-$current_tournaments = [];
+$upcoming_tournaments = [];   // registration closed, not started yet
+$ongoing_tournaments = [];
 $previous_tournaments = [];
 
 $now = time();
@@ -63,10 +66,13 @@ while ($tournament = $tournaments_result->fetch_assoc()) {
         );
         $open_tournaments[] = $tournament;
 
+    } elseif ($start !== null && $start > $now) {
+
+        $upcoming_tournaments[] = $tournament;
+
     } elseif ($end !== null && $end >= $now) {
 
-        $tournament['is_ongoing'] = $start !== null && $start <= $now;
-        $current_tournaments[] = $tournament;
+        $ongoing_tournaments[] = $tournament;
 
     } else {
 
@@ -80,13 +86,13 @@ usort($open_tournaments, function ($a, $b) {
     return strcmp($a['tournament_deadline'], $b['tournament_deadline']);
 });
 
-// Happening now first, then the ones starting soonest
-usort($current_tournaments, function ($a, $b) {
-    if ($a['is_ongoing'] !== $b['is_ongoing']) {
-        return $a['is_ongoing'] ? -1 : 1;
-    }
+// Starting soonest first
+$by_start = function ($a, $b) {
     return strcmp($a['tournament_startdate'], $b['tournament_startdate']);
-});
+};
+
+usort($upcoming_tournaments, $by_start);
+usort($ongoing_tournaments, $by_start);
 
 // Most recent first
 $previous_tournaments = array_reverse($previous_tournaments);
@@ -164,6 +170,12 @@ function tournament_place($tournament) {
    REGISTRATION OPEN CARD
 ========================= */
 
+// Clicking a tournament opens its page (Tournament Organizers only see their own here)
+function tournament_link($id) {
+    return 'admin_each_tournament.php?id=' . (int)$id;
+}
+
+
 function open_card($tournament) {
 
     $id = (int)$tournament['tournamentid'];
@@ -191,6 +203,10 @@ function open_card($tournament) {
             <span class="type-badge">
                 <?= htmlspecialchars(strtoupper($tournament['tournament_type'])) ?>
             </span>
+
+            <?php global $conn; if (platformFeeUnpaid($conn, $id)): ?>
+                <span class="closing-badge urgent" style="bottom:auto;top:10px;right:10px;">Fee unpaid</span>
+            <?php endif; ?>
 
             <span class="closing-badge <?= $days <= 3 ? 'urgent' : '' ?>">
                 <?= $closing ?>
@@ -249,12 +265,14 @@ function list_item($tournament, $badge, $badge_class, $hidden = false) {
 
     $id = (int)$tournament['tournamentid'];
     $place = tournament_place($tournament);
+    $link = tournament_link($id);
+    $tag = $link ? 'a' : 'div';
 
     ?>
 
-    <a
+    <<?= $tag ?>
         class="list-item <?= $hidden ? 'extra-item' : '' ?>"
-        href="admin_each_tournament.php?id=<?= $id ?>"
+        <?= $link ? 'href="' . htmlspecialchars($link) . '"' : '' ?>
         <?= $hidden ? 'hidden' : '' ?>
     >
 
@@ -284,7 +302,7 @@ function list_item($tournament, $badge, $badge_class, $hidden = false) {
 
         <span class="status-badge <?= $badge_class ?>"><?= $badge ?></span>
 
-    </a>
+    </<?= $tag ?>>
 
     <?php
 }
@@ -318,7 +336,7 @@ function list_item($tournament, $badge, $badge_class, $hidden = false) {
 
         <div class="page-header">
 
-            <h1>Tournaments</h1>
+            <h1><?= isPlatformAdmin() ? 'Tournaments' : 'My Tournaments' ?></h1>
 
             <a class="add-new-btn" href="admin_create_tournament.php">
                 <span>＋</span>
@@ -327,6 +345,11 @@ function list_item($tournament, $badge, $badge_class, $hidden = false) {
 
         </div>
 
+
+
+        <?php if (isset($_GET['created'])): ?>
+            <p class="created-message">Tournament created successfully.</p>
+        <?php endif; ?>
 
 
         <!-- =========================
@@ -349,7 +372,7 @@ function list_item($tournament, $badge, $badge_class, $hidden = false) {
 
 
         <!-- =========================
-            ROW 1: REGISTRATION OPEN
+            ROW 1: CURRENT (not started yet)
         ========================== -->
 
         <section class="panel">
@@ -358,10 +381,10 @@ function list_item($tournament, $badge, $badge_class, $hidden = false) {
 
                 <h2>
                     <span class="dot dot-open"></span>
-                    Registration Open
+                    Current Tournaments
                 </h2>
 
-                <span class="panel-count"><?= count($open_tournaments) ?></span>
+                <span class="panel-count"><?= count($open_tournaments) + count($upcoming_tournaments) ?></span>
 
             </div>
 
@@ -375,10 +398,22 @@ function list_item($tournament, $badge, $badge_class, $hidden = false) {
 
                 </div>
 
-            <?php else: ?>
+            <?php endif; ?>
 
-                <p class="no-tournaments">No tournaments are open for registration.</p>
+            <?php if ($upcoming_tournaments): ?>
 
+                <h3 class="sub-heading">Registration closed &ndash; starting soon</h3>
+
+                <div class="list list-grid">
+                    <?php foreach ($upcoming_tournaments as $tournament): ?>
+                        <?php list_item($tournament, 'Upcoming', 'badge-upcoming'); ?>
+                    <?php endforeach; ?>
+                </div>
+
+            <?php endif; ?>
+
+            <?php if (!$open_tournaments && !$upcoming_tournaments): ?>
+                <p class="no-tournaments">No upcoming tournaments.</p>
             <?php endif; ?>
 
             <p class="no-tournaments search-empty" hidden>No matching tournaments.</p>
@@ -388,98 +423,88 @@ function list_item($tournament, $badge, $badge_class, $hidden = false) {
 
 
         <!-- =========================
-            ROW 2: CURRENT | PREVIOUS
+            ROW 2: ONGOING
         ========================== -->
 
-        <div class="two-columns">
+        <section class="panel">
 
+            <div class="panel-header">
 
-            <!-- Current -->
+                <h2>
+                    <span class="dot dot-current"></span>
+                    Ongoing Tournaments
+                </h2>
 
-            <section class="panel">
+                <span class="panel-count"><?= count($ongoing_tournaments) ?></span>
 
-                <div class="panel-header">
+            </div>
 
-                    <h2>
-                        <span class="dot dot-current"></span>
-                        Current Tournaments
-                    </h2>
+            <div class="list list-grid">
 
-                    <span class="panel-count"><?= count($current_tournaments) ?></span>
+                <?php if ($ongoing_tournaments): ?>
 
-                </div>
+                    <?php foreach ($ongoing_tournaments as $tournament): ?>
+                        <?php list_item($tournament, 'Ongoing', 'badge-ongoing'); ?>
+                    <?php endforeach; ?>
 
-                <div class="list">
+                <?php else: ?>
 
-                    <?php if ($current_tournaments): ?>
-
-                        <?php foreach ($current_tournaments as $tournament): ?>
-
-                            <?php if ($tournament['is_ongoing']): ?>
-                                <?php list_item($tournament, 'Ongoing', 'badge-ongoing'); ?>
-                            <?php else: ?>
-                                <?php list_item($tournament, 'Upcoming', 'badge-upcoming'); ?>
-                            <?php endif; ?>
-
-                        <?php endforeach; ?>
-
-                    <?php else: ?>
-
-                        <p class="no-tournaments">No tournaments are being held right now.</p>
-
-                    <?php endif; ?>
-
-                    <p class="no-tournaments search-empty" hidden>No matching tournaments.</p>
-
-                </div>
-
-            </section>
-
-
-            <!-- Previous -->
-
-            <section class="panel">
-
-                <div class="panel-header">
-
-                    <h2>
-                        <span class="dot dot-previous"></span>
-                        Previous Tournaments
-                    </h2>
-
-                    <span class="panel-count"><?= count($previous_tournaments) ?></span>
-
-                </div>
-
-                <div class="list">
-
-                    <?php if ($previous_tournaments): ?>
-
-                        <?php foreach ($previous_tournaments as $index => $tournament): ?>
-                            <?php list_item($tournament, 'Finished', 'badge-finished', $index >= $previous_limit); ?>
-                        <?php endforeach; ?>
-
-                    <?php else: ?>
-
-                        <p class="no-tournaments">No previous tournaments.</p>
-
-                    <?php endif; ?>
-
-                    <p class="no-tournaments search-empty" hidden>No matching tournaments.</p>
-
-                </div>
-
-                <?php if (count($previous_tournaments) > $previous_limit): ?>
-
-                    <button type="button" class="show-all-btn" id="showAllPrevious">
-                        Show all (<?= count($previous_tournaments) ?>)
-                    </button>
+                    <p class="no-tournaments">No tournaments are being held right now.</p>
 
                 <?php endif; ?>
 
-            </section>
+                <p class="no-tournaments search-empty" hidden>No matching tournaments.</p>
 
-        </div>
+            </div>
+
+        </section>
+
+
+
+        <!-- =========================
+            ROW 3: PREVIOUS
+        ========================== -->
+
+        <section class="panel">
+
+            <div class="panel-header">
+
+                <h2>
+                    <span class="dot dot-previous"></span>
+                    Previous Tournaments
+                </h2>
+
+                <span class="panel-count"><?= count($previous_tournaments) ?></span>
+
+            </div>
+
+            <div class="list list-grid">
+
+                <?php if ($previous_tournaments): ?>
+
+                    <?php foreach ($previous_tournaments as $index => $tournament): ?>
+                        <?php list_item($tournament, 'Finished', 'badge-finished', $index >= $previous_limit); ?>
+                    <?php endforeach; ?>
+
+                <?php else: ?>
+
+                    <p class="no-tournaments">No previous tournaments.</p>
+
+                <?php endif; ?>
+
+                <p class="no-tournaments search-empty" hidden>No matching tournaments.</p>
+
+            </div>
+
+            <?php if (count($previous_tournaments) > $previous_limit): ?>
+
+                <button type="button" class="show-all-btn" id="showAllPrevious">
+                    Show all (<?= count($previous_tournaments) ?>)
+                </button>
+
+            <?php endif; ?>
+
+        </section>
 
     </main>
 

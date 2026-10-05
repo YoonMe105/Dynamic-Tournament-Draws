@@ -74,14 +74,31 @@ function getRegistration($conn, $tournamentID, $playerID)
 |--------------------------------------------------------------------------
 | Registration Open?
 |--------------------------------------------------------------------------
-| A missing or zero deadline (0000-00-00) counts as closed.
+| A missing or zero deadline (0000-00-00) counts as closed. A tournament
+| whose organizer hasn't paid the T_Software fee yet is visible but not
+| open for registration.
 */
 
 function isRegistrationOpen($tournament)
 {
+    global $conn;
+
     $deadlineTime = strtotime($tournament['tournament_deadline'] ?? '');
 
-    return $deadlineTime !== false && $deadlineTime > 0 && $deadlineTime >= time();
+    $beforeDeadline = $deadlineTime !== false && $deadlineTime > 0 && $deadlineTime >= time();
+
+    return $beforeDeadline && !platformFeeUnpaid($conn, $tournament['tournamentID']);
+}
+
+
+// Deadline not passed yet, but the organizer's T_Software fee is still unpaid
+function registrationOpensSoon($tournament)
+{
+    global $conn;
+
+    $deadlineTime = strtotime($tournament['tournament_deadline'] ?? '');
+
+    return $deadlineTime !== false && $deadlineTime >= time() && platformFeeUnpaid($conn, $tournament['tournamentID']);
 }
 
 
@@ -199,6 +216,7 @@ function getCategories($conn, $tournamentID)
 */
 
 require_once __DIR__ . '/../fees.php';
+require_once __DIR__ . '/../platform_fee.php';
 
 /*
 | ['RM' => ..., 'USD' => ...] with only the currencies the fee has.
@@ -314,4 +332,44 @@ function uploadFile($input, $folder, $prefix)
     }
 
     return [$newFileName, ''];
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| Ranking Record
+|--------------------------------------------------------------------------
+| Copies the player's rankings at the time of registration into
+| tournament_rankings (one row per registration). The seed is filled in
+| later, when the admin runs the seeding.
+*/
+
+function saveRegistrationRankings($conn, $registrationID)
+{
+    $stmt = $conn->prepare("
+        INSERT INTO tournament_rankings (
+            registrationID, tournamentID, playerID, category_registered,
+            national_ranking, ajss_ranking, world_ranking
+        )
+        SELECT
+            tr.registrationID, tr.tournamentID, tr.playerID, tr.category_registered,
+            IF(p.national_ranking REGEXP '^[0-9]+$', CAST(p.national_ranking AS UNSIGNED), NULL),
+            IF(p.ajss_ranking REGEXP '^[0-9]+$', CAST(p.ajss_ranking AS UNSIGNED), NULL),
+            IF(p.world_ranking REGEXP '^[0-9]+$', CAST(p.world_ranking AS UNSIGNED), NULL)
+        FROM tournament_register tr
+        JOIN players p ON p.playerID = tr.playerID
+        WHERE tr.registrationID = ?
+    ");
+
+    if (!$stmt) {
+        return false;
+    }
+
+    $stmt->bind_param("i", $registrationID);
+
+    $saved = $stmt->execute() && $stmt->affected_rows === 1;
+
+    $stmt->close();
+
+    return $saved;
 }

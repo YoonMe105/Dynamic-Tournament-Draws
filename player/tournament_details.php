@@ -299,6 +299,18 @@ $myFee = playerFee($tournament, getPlayer($conn, $playerID) ?? []);
                     <?php endif; ?>
 
 
+                <?php elseif (registrationOpensSoon($tournament)): ?>
+
+
+                    <!-- NOT OPEN YET (organizer's T_Software fee unpaid) -->
+
+                    <h2>Registration</h2>
+
+                    <p class="muted">
+                        Registration for this tournament isn't open yet. Please check back soon.
+                    </p>
+
+
                 <?php elseif (!$registrationOpen): ?>
 
 

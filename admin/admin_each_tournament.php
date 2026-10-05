@@ -1,12 +1,10 @@
 <?php
-session_start();
+require_once '../db.php';
+require_once 'admin_auth.php';
+require_once 'admin_fee_banner.php';
 
-require '../db.php';
-
-if (!isset($_SESSION["userid"]) || $_SESSION["role"] !== "admin") {
-    header("Location: ../login.php");
-    exit;
-}
+// Platform Admins, or the admin who created this tournament
+requireTournamentAccess($_GET['id'] ?? 0);
 
 
 $tournamentID = isset($_GET['id']) ? intval($_GET['id']) : 0;
@@ -366,6 +364,8 @@ function categoryBadge($registrationID, $category, $wrongCategories)
         <i class="fa-solid fa-arrow-left"></i>
         Back to Tournaments
     </a>
+
+    <?php platformFeeBanner($conn, $tournamentID); ?>
 
 
     <section class="tournament-section tournament-overview">
@@ -1262,6 +1262,14 @@ function categoryBadge($registrationID, $category, $wrongCategories)
                     Draw
                 </a>
 
+
+                <a
+                    href="admin_ranking_check.php?id=<?= $tournamentID ?>"
+                    class="btn manage-seeding"
+                >
+                    Check Rankings
+                </a>
+
             </div>
         </div>
 
@@ -1283,14 +1291,17 @@ function categoryBadge($registrationID, $category, $wrongCategories)
                 p.playerID,
                 p.player_full_name,
                 p.player_nationality,
-                p.world_ranking,
-                p.national_ranking,
-                p.ajss_ranking
+                r.world_ranking,
+                r.national_ranking,
+                r.ajss_ranking
 
             FROM tournament_register tr
 
             JOIN players p
                 ON tr.playerID = p.playerID
+
+            LEFT JOIN tournament_rankings r
+                ON r.registrationID = tr.registrationID
 
             WHERE tr.tournamentID = ?
               AND tr.category_registered = ?
