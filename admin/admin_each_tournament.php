@@ -873,7 +873,7 @@ function categoryBadge($registrationID, $category, $wrongCategories)
                             <div class="no-players">
 
                                 <div class="no-players-icon">
-                                    👤
+                                    <i class="fa-solid fa-user"></i>
                                 </div>
 
                                 <h3>
@@ -1135,7 +1135,7 @@ function categoryBadge($registrationID, $category, $wrongCategories)
                             <div class="no-players">
 
                                 <div class="no-players-icon">
-                                    👤
+                                    <i class="fa-solid fa-user"></i>
                                 </div>
 
                                 <h3>
@@ -1481,7 +1481,7 @@ function categoryBadge($registrationID, $category, $wrongCategories)
             <div class="no-players">
 
                 <div class="no-players-icon">
-                    👤
+                    <i class="fa-solid fa-user"></i>
                 </div>
 
                 <h3>

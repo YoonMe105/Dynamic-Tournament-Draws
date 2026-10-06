@@ -59,11 +59,33 @@
             <?php if (isPlatformAdmin()): ?>
                 <li><a href="admin_dashboard.php" class="<?= $current_page == 'admin_dashboard.php' ? 'active' : '' ?>">Dashboard</a></li>
             <?php endif; ?>
-            <!-- <li><a href="admin_player_lists.php" class="">Players</a></li> -->
             <li><a href="admin_index.php" class="<?= in_array($current_page, $tournament_pages, true) ? 'active' : '' ?>"><?= isPlatformAdmin() ? 'Tournaments' : 'My Tournaments' ?></a></li>
             <?php if (isPlatformAdmin()): ?>
-                <li><a href="admin_admins.php" class="<?= $current_page == 'admin_admins.php' ? 'active' : '' ?>">Admins</a></li>
+
+                <?php
+                // Pages under "Users"
+                $player_pages = ['admin_player_lists.php', 'admin_player_create.php'];
+                $admin_pages = ['admin_admins.php', 'admin_add_admin.php', 'admin_admin_details.php'];
+                $users_open = in_array($current_page, $admin_pages, true) || in_array($current_page, $player_pages, true);
+                ?>
+
+                <li class="has-submenu <?= $users_open ? 'open' : '' ?>">
+
+                    <button type="button" class="submenu-toggle <?= $users_open ? 'active' : '' ?>"
+                            aria-expanded="<?= $users_open ? 'true' : 'false' ?>" aria-controls="usersMenu">
+                        Users
+                        <span class="chevron" aria-hidden="true"></span>
+                    </button>
+
+                    <ul class="submenu" id="usersMenu">
+                        <li><a href="admin_admins.php" class="<?= in_array($current_page, $admin_pages, true) ? 'active' : '' ?>">Admins</a></li>
+                        <li><a href="admin_player_lists.php" class="<?= in_array($current_page, $player_pages, true) ? 'active' : '' ?>">Players</a></li>
+                    </ul>
+
+                </li>
+
                 <li><a href="admin_tournament_fees.php" class="<?= $current_page == 'admin_tournament_fees.php' ? 'active' : '' ?>">Tournament Fees</a></li>
+
             <?php endif; ?>
             <li class="menu-divider"><a href="admin_my_profile.php" class="<?= $current_page == 'admin_my_profile.php' ? 'active' : '' ?>">My Profile</a></li>
         </ul>
@@ -75,6 +97,16 @@
 </header>
 
 <script>
+    // Sidebar: open / close the Users menu
+    document.querySelectorAll('.submenu-toggle').forEach(function (toggle) {
+        toggle.addEventListener('click', function () {
+            const item = toggle.closest('.has-submenu');
+            const open = item.classList.toggle('open');
+            toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+        });
+    });
+
+
     function updateDateTime() {
         const now = new Date();
         document.getElementById('current-date').textContent = now.toLocaleDateString(undefined, {

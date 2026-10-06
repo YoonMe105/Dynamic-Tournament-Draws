@@ -10,11 +10,11 @@ document.addEventListener("DOMContentLoaded", function () {
     togglePassword.addEventListener("click", function () {
         if (password.type === "password") {
             password.type = "text";
-            togglePassword.textContent = "🙈";
+            togglePassword.innerHTML = '<i class="fa-solid fa-eye-slash"></i>';
             togglePassword.setAttribute("aria-label", "Hide password");
         } else {
             password.type = "password";
-            togglePassword.textContent = "👁";
+            togglePassword.innerHTML = '<i class="fa-solid fa-eye"></i>';
             togglePassword.setAttribute("aria-label", "Show password");
         }
     });
@@ -22,11 +22,11 @@ document.addEventListener("DOMContentLoaded", function () {
     toggleConfirmPassword.addEventListener("click", function () {
         if (confirmPassword.type === "password") {
             confirmPassword.type = "text";
-            toggleConfirmPassword.textContent = "🙈";
+            toggleConfirmPassword.innerHTML = '<i class="fa-solid fa-eye-slash"></i>';
             toggleConfirmPassword.setAttribute("aria-label", "Hide password");
         } else {
             confirmPassword.type = "password";
-            toggleConfirmPassword.textContent = "👁";
+            toggleConfirmPassword.innerHTML = '<i class="fa-solid fa-eye"></i>';
             toggleConfirmPassword.setAttribute("aria-label", "Show password");
         }
     });

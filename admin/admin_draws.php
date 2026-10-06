@@ -170,7 +170,7 @@ mysqli_stmt_close($nextStmt);
                             <?php else: ?>
 
                                 <div class="no-image">
-                                    🏆
+                                    <i class="fa-solid fa-trophy"></i>
                                 </div>
 
                             <?php endif; ?>
@@ -201,7 +201,7 @@ mysqli_stmt_close($nextStmt);
                                 <div class="info-row">
 
                                     <span class="info-icon">
-                                        📅
+                                        <i class="fa-regular fa-calendar"></i>
                                     </span>
 
                                     <span class="info-label">
@@ -230,7 +230,7 @@ mysqli_stmt_close($nextStmt);
                                 <div class="info-row">
 
                                     <span class="info-icon">
-                                        📍
+                                        <i class="fa-solid fa-location-dot"></i>
                                     </span>
 
                                     <span class="info-label">
@@ -251,7 +251,7 @@ mysqli_stmt_close($nextStmt);
                                 <div class="info-row">
 
                                     <span class="info-icon">
-                                        💰
+                                        <i class="fa-solid fa-money-bill-wave"></i>
                                     </span>
 
                                     <span class="info-label">
@@ -348,7 +348,7 @@ mysqli_stmt_close($nextStmt);
                             <?php else: ?>
 
                                 <div class="no-image">
-                                    🏆
+                                    <i class="fa-solid fa-trophy"></i>
                                 </div>
 
                             <?php endif; ?>
@@ -385,7 +385,7 @@ mysqli_stmt_close($nextStmt);
                                 <div class="info-row">
 
                                     <span class="info-icon">
-                                        📅
+                                        <i class="fa-regular fa-calendar"></i>
                                     </span>
 
                                     <span class="info-label">
@@ -414,7 +414,7 @@ mysqli_stmt_close($nextStmt);
                                 <div class="info-row">
 
                                     <span class="info-icon">
-                                        📍
+                                        <i class="fa-solid fa-location-dot"></i>
                                     </span>
 
                                     <span class="info-label">
@@ -435,7 +435,7 @@ mysqli_stmt_close($nextStmt);
                                 <div class="info-row">
 
                                     <span class="info-icon">
-                                        ⏰
+                                        <i class="fa-regular fa-clock"></i>
                                     </span>
 
                                     <span class="info-label">

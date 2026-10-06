@@ -54,6 +54,7 @@ $admin = loadAdmin($conn, $adminID);
 
 $form = [
     'admin_name' => $admin['admin_name'],
+    'admin_organization' => (string)$admin['admin_organization'],
     'admin_email' => (string)$admin['admin_email'],
     'admin_contact' => $admin['admin_contact'],
     'admin_ic_passport' => $admin['admin_ic_passport'],
@@ -91,6 +92,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'profile') {
         $profileError = 'Please choose your gender.';
     } elseif ($form['admin_country'] !== '' && !in_array($form['admin_country'], $tournament_countries, true)) {
         $profileError = 'Please choose a country from the list.';
+    } elseif ($admin['admin_role'] === 'organizer' && $form['admin_organization'] === '') {
+        $profileError = 'Please enter your organization\'s name.';
     } elseif ($admin['admin_role'] === 'organizer' && $form['admin_country'] === '') {
         $profileError = 'Please choose your country.';
     }
@@ -131,18 +134,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'profile') {
 
         $email = $form['admin_email'] !== '' ? $form['admin_email'] : null;
         $country = $form['admin_country'] !== '' ? $form['admin_country'] : null;
+        // Only Tournament Organizers have an organization
+        $organization = $admin['admin_role'] === 'organizer' && $form['admin_organization'] !== '' ? $form['admin_organization'] : null;
         $photo = $newPhoto ?? $admin['admin_profile'];
 
         $stmt = $conn->prepare("
             UPDATE admins
-            SET admin_name = ?, admin_email = ?, admin_contact = ?, admin_ic_passport = ?,
+            SET admin_name = ?, admin_organization = ?, admin_email = ?, admin_contact = ?, admin_ic_passport = ?,
                 admin_gender = ?, admin_country = ?, admin_profile = ?
             WHERE adminID = ?
         ");
 
         $stmt->bind_param(
-            "ssssssss",
+            "sssssssss",
             $form['admin_name'],
+            $organization,
             $email,
             $form['admin_contact'],
             $form['admin_ic_passport'],
@@ -273,6 +279,9 @@ $initials = strtoupper(implode('', array_map(function ($word) {
                 </span>
 
                 <ul class="summary-list">
+                    <?php if (trim((string)$admin['admin_organization']) !== ''): ?>
+                        <li><span>Organization</span> <?= htmlspecialchars($admin['admin_organization']) ?></li>
+                    <?php endif; ?>
                     <li><span>Admin ID</span> <?= htmlspecialchars($admin['adminID']) ?></li>
                     <li><span>Member since</span> <?= date('d M Y', strtotime($admin['admin_register'])) ?></li>
                     <?php if (trim((string)$admin['admin_country']) !== ''): ?>
@@ -309,6 +318,14 @@ $initials = strtoupper(implode('', array_map(function ($word) {
                             <input type="text" id="admin_name" name="admin_name" maxlength="255" required
                                    value="<?= htmlspecialchars($form['admin_name']) ?>">
                         </div>
+
+                        <?php if ($admin['admin_role'] === 'organizer'): ?>
+                            <div class="form-group">
+                                <label for="admin_organization">Organization's name <span class="required">*</span></label>
+                                <input type="text" id="admin_organization" name="admin_organization" maxlength="255" required
+                                       value="<?= htmlspecialchars($form['admin_organization']) ?>">
+                            </div>
+                        <?php endif; ?>
 
                         <div class="form-row">
 

@@ -4,6 +4,9 @@ require_once "../db.php";
 $message = "";
 $message_type = "";
 
+// Set after a successful sign-up (the player can log in straight away)
+$new_player_id = "";
+
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
     $firstname = trim($_POST["firstname"] ?? "");
@@ -57,7 +60,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
             $fullname = $firstname . ' ' . $lastname;
 
-            $sql = "INSERT INTO players (playerID, player_full_name, player_first_name, player_last_name, player_email, player_dob, player_nationality, player_password) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+            $sql = "INSERT INTO players (playerID, player_full_name, player_first_name, player_last_name, player_email, player_dob, player_nationality, player_password, player_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active')";
 
             $stmt = $conn->prepare($sql);
 
@@ -67,8 +70,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 
                 if ($stmt->execute()) {
 
-                    $message = "Registration successful! Your Player ID is " . $player_id;
-                    $message_type = "success";
+                    $new_player_id = $player_id;
 
                 } else {
 
@@ -96,12 +98,27 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sign In</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css">
     <link href="./assets/css/signin.css?v=<?= filemtime(__DIR__ . '/assets/css/signin.css') ?>" rel="stylesheet" type="text/css">
 </head>
 <body>
 
     <div class="signin-container">
         <div class="signin-card">
+
+            <?php if ($new_player_id !== ""): ?>
+
+            <!-- Registered: can log in now -->
+            <div class="application-sent">
+                <span class="sent-icon"><i class="fa-solid fa-circle-check"></i></span>
+                <h2>Account created</h2>
+                <p>Welcome, <?= htmlspecialchars($firstname) ?>. You can now log in and register for tournaments.</p>
+                <p class="your-id">Your Player ID: <strong><?= htmlspecialchars($new_player_id) ?></strong></p>
+                <p class="hint">Keep this ID. You log in with it and the password you chose.</p>
+                <a class="signin-btn as-link" href="../login.php">Go to Log In</a>
+            </div>
+
+            <?php else: ?>
 
             <h2>Sign In</h2>
             <p class="subtitle">Create your account to continue</p>
@@ -170,7 +187,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     <label for="password">Password</label>
                     <div class="password-wrapper">
                         <input type="password" id="password" name="password" placeholder="Enter your password" required>
-                        <button type="button" class="eye-btn" id="togglePassword" aria-label="Show password">👁</button>
+                        <button type="button" class="eye-btn" id="togglePassword" aria-label="Show password"><i class="fa-solid fa-eye"></i></button>
                     </div>
                 </div>
 
@@ -178,7 +195,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     <label for="confirm_password">Confirm Password</label>
                     <div class="password-wrapper">
                         <input type="password" id="confirm_password" name="confirm_password" placeholder="Confirm your password" required>
-                        <button type="button" class="eye-btn" id="toggleConfirmPassword" aria-label="Show confirm password">👁</button>
+                        <button type="button" class="eye-btn" id="toggleConfirmPassword" aria-label="Show confirm password"><i class="fa-solid fa-eye"></i></button>
                     </div>
                     <small id="passwordMessage"></small>
                 </div>
@@ -186,10 +203,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 <button type="submit" class="signin-btn">Sign In</button>
 
             </form>
+
+            <p class="signin-links">Already have an account? <a href="../login.php">Log in</a></p>
+
+            <?php endif; ?>
         </div>
     </div>
 
-    <script src="./assets/js/signin.js"></script>
+    <script src="./assets/js/signin.js?v=<?= filemtime(__DIR__ . '/assets/js/signin.js') ?>"></script>
 
 </body>
 </html>

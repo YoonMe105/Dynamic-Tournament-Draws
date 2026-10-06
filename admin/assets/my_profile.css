@@ -253,3 +253,14 @@
     }
 
 }
+
+/* Long values (e.g. organization names) wrap on the right */
+.summary-list li {
+    gap: 12px;
+    text-align: right;
+}
+
+.summary-list li span {
+    flex-shrink: 0;
+    text-align: left;
+}

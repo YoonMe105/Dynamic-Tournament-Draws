@@ -2,7 +2,6 @@
 
 require_once '../db.php';
 require_once 'admin_auth.php';
-require_once 'admin_countries.php';
 
 requirePlatformAdmin();
 
@@ -11,131 +10,61 @@ requirePlatformAdmin();
 |--------------------------------------------------------------------------
 | Admins
 |--------------------------------------------------------------------------
-| Platform Admins can add admins. A new admin is either a Platform Admin or a
-| Tournament Organizer (creates tournaments and can do everything on
-| the ones they created), saved in admins.admin_role
-| (see admin_auth.php).
+| All admins and what they can do. New admins are added on
+| admin_add_admin.php.
 */
 
-// Next free ID: AD0001 -> AD0002
-function nextAdminID($conn)
-{
-    $row = $conn->query("
-        SELECT MAX(CAST(SUBSTRING(adminID, 3) AS UNSIGNED)) AS last_number
-        FROM admins
-        WHERE adminID REGEXP '^AD[0-9]+$'
-    ")->fetch_assoc();
-
-    return 'AD' . str_pad((string)((int)$row['last_number'] + 1), 4, '0', STR_PAD_LEFT);
-}
-
-
-function responsibilityText($role)
-{
-    return $role === 'platform'
-        ? 'Everything, all tournaments'
-        : 'Creates tournaments; everything on their own tournaments';
-}
-
-
-$form = [
-    'admin_name' => '',
-    'admin_ic_passport' => '',
-    'admin_gender' => '',
-    'admin_contact' => '',
-    'admin_email' => '',
-    'admin_country' => '',
-    'admin_type' => 'organizer',
-];
+/*
+|--------------------------------------------------------------------------
+| Deactivate / activate an admin
+|--------------------------------------------------------------------------
+| A deactivated admin can't log in (and is logged out at once). Nobody can
+| deactivate themselves, or the last active Platform Admin.
+*/
 
 $error = '';
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'toggle_active') {
 
-/*
-|--------------------------------------------------------------------------
-| Add admin
-|--------------------------------------------------------------------------
-*/
+    $targetID = trim($_POST['adminID'] ?? '');
+    $backTo = ($_POST['return'] ?? '') === 'details'
+        ? 'admin_admin_details.php?id=' . urlencode($targetID) . '&'
+        : 'admin_admins.php?';
 
-$action = $_POST['action'] ?? '';
+    $stmt = $conn->prepare("SELECT adminID, admin_role, admin_active FROM admins WHERE adminID = ?");
+    $stmt->bind_param("s", $targetID);
+    $stmt->execute();
+    $target = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
 
-/*
-| Add admin
-*/
+    $activePlatformAdmins = (int)$conn->query("
+        SELECT COUNT(*) AS total FROM admins WHERE admin_role = 'platform' AND admin_active = 'active'
+    ")->fetch_assoc()['total'];
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'add_admin') {
-
-    foreach (['admin_name', 'admin_ic_passport', 'admin_gender', 'admin_contact', 'admin_email', 'admin_country', 'admin_type'] as $field) {
-        $form[$field] = trim($_POST[$field] ?? '');
+    if (!$target) {
+        $problem = 'not_found';
+    } elseif ($target['adminID'] === $_SESSION['userid']) {
+        $problem = 'self';
+    } elseif ($target['admin_active'] === 'active' && $target['admin_role'] === 'platform' && $activePlatformAdmins <= 1) {
+        $problem = 'last_platform';
+    } else {
+        $problem = '';
     }
 
-    $password = $_POST['admin_password'] ?? '';
-    $confirm = $_POST['admin_password_confirm'] ?? '';
-
-    if ($form['admin_name'] === '') {
-        $error = 'Please enter the admin\'s name.';
-    } elseif (strlen($password) < 6) {
-        $error = 'The password must be at least 6 characters.';
-    } elseif (strlen($password) > 50) {
-        $error = 'The password can be at most 50 characters.';
-    } elseif ($password !== $confirm) {
-        $error = 'The two passwords don\'t match.';
-    } elseif ($form['admin_ic_passport'] === '') {
-        $error = 'Please enter the IC or passport number.';
-    } elseif (!in_array($form['admin_gender'], ['male', 'female'], true)) {
-        $error = 'Please choose a gender.';
-    } elseif ($form['admin_contact'] === '') {
-        $error = 'Please enter a contact number.';
-    } elseif ($form['admin_email'] !== '' && !filter_var($form['admin_email'], FILTER_VALIDATE_EMAIL)) {
-        $error = 'Please enter a valid email address (or leave it empty).';
-    } elseif (!in_array($form['admin_type'], ['platform', 'organizer'], true)) {
-        $error = 'Please choose the admin type.';
-    } elseif ($form['admin_country'] !== '' && !in_array($form['admin_country'], $tournament_countries, true)) {
-        $error = 'Please choose a country from the list.';
-    } elseif ($form['admin_type'] === 'organizer' && $form['admin_country'] === '') {
-        $error = 'Please choose the Tournament Organizer\'s country.';
+    if ($problem !== '') {
+        header("Location: " . $backTo . "problem=" . $problem);
+        exit;
     }
 
-    if ($error === '') {
+    $newStatus = $target['admin_active'] === 'active' ? 'inactive' : 'active';
 
-        $adminID = nextAdminID($conn);
-        $role = $form['admin_type'];   // 'platform' or 'organizer'
-        $email = $form['admin_email'] !== '' ? $form['admin_email'] : null;
-        $country = $form['admin_country'] !== '' ? $form['admin_country'] : null;
-        $status = 'offline';
-        $today = date('Y-m-d');
+    $stmt = $conn->prepare("UPDATE admins SET admin_active = ? WHERE adminID = ?");
+    $stmt->bind_param("ss", $newStatus, $targetID);
+    $stmt->execute();
+    $stmt->close();
 
-        $stmt = $conn->prepare("
-            INSERT INTO admins (
-                adminID, admin_password, admin_name, admin_ic_passport, admin_gender,
-                admin_contact, admin_email, admin_country, admin_register, admin_status, admin_role
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ");
-
-        $stmt->bind_param(
-            "sssssssssss",
-            $adminID,
-            $password,
-            $form['admin_name'],
-            $form['admin_ic_passport'],
-            $form['admin_gender'],
-            $form['admin_contact'],
-            $email,
-            $country,
-            $today,
-            $status,
-            $role
-        );
-
-        if ($stmt->execute()) {
-            $stmt->close();
-            header("Location: admin_admins.php?added=" . urlencode($adminID));
-            exit;
-        }
-
-        $error = 'The admin could not be saved: ' . $stmt->error;
-        $stmt->close();
-    }
+    header("Location: " . $backTo . "changed=" . urlencode($targetID) . "&status=" . $newStatus);
+    exit;
 }
 
 
@@ -146,7 +75,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'add_admin') {
 */
 
 $admins = $conn->query("
-    SELECT adminID, admin_name, admin_email, admin_contact, admin_country, admin_register, admin_role,
+    SELECT adminID, admin_name, admin_organization, admin_email, admin_contact, admin_country, admin_register, admin_role, admin_active,
            (SELECT COUNT(*) FROM tournament t WHERE t.creatorID = a.adminID COLLATE utf8mb4_unicode_ci) AS tournaments_created
     FROM admins a
     ORDER BY adminID ASC
@@ -177,24 +106,52 @@ $admins = $conn->query("
 
     <main class="admins-page">
 
-        <div class="page-title">
-            <h1>Admins</h1>
-            <p>Add admins. Tournament Organizers manage only the tournaments they create.</p>
+        <div class="page-title page-title-row">
+
+            <div>
+                <h1>Admins</h1>
+                <p>Tournament Organizers manage only the tournaments they create.</p>
+            </div>
+
+            <a class="add-admin-btn" href="admin_add_admin.php">+ Add Admin</a>
+
         </div>
 
 
-        <?php if (isset($_GET['added'])): ?>
+        <?php if (isset($_GET['changed'])): ?>
             <div class="success-message">
-                Admin <strong><?= htmlspecialchars($_GET['added']) ?></strong> added. They can now log in with this ID and the password you set.
+                Admin <strong><?= htmlspecialchars($_GET['changed']) ?></strong>
+                <?= ($_GET['status'] ?? '') === 'inactive'
+                    ? 'has been deactivated and can no longer log in.'
+                    : 'has been activated and can log in again.' ?>
             </div>
         <?php endif; ?>
 
-        <?php if ($error !== ''): ?>
-            <div class="error-message"><?= htmlspecialchars($error) ?></div>
+        <?php if (isset($_GET['problem'])): ?>
+            <div class="error-message">
+                <?= [
+                    'self' => "You can't deactivate your own account.",
+                    'last_platform' => "This is the last active Platform Admin - activate or add another Platform Admin first.",
+                    'not_found' => 'That admin was not found.',
+                ][$_GET['problem']] ?? 'The admin could not be changed.' ?>
+            </div>
+        <?php endif; ?>
+
+        <?php if (isset($_GET['added'])): ?>
+            <div class="success-message">
+                Admin <strong><?= htmlspecialchars($_GET['added']) ?></strong> added.
+                <?php if (isset($_GET['default_password'])): ?>
+                    They can log in with user ID <strong><?= htmlspecialchars($_GET['added']) ?></strong>
+                    and password <strong><?= htmlspecialchars($_GET['added']) ?></strong>,
+                    then change the password on My Profile.
+                <?php else: ?>
+                    They can now log in with this ID and the password you set.
+                <?php endif; ?>
+            </div>
         <?php endif; ?>
 
 
-        <div class="admins-layout">
+        <div class="list-page">
 
 
             <!-- ==========================================
@@ -215,8 +172,9 @@ $admins = $conn->query("
                                 <th>Name</th>
                                 <th>Role</th>
                                 <th>Country</th>
-                                <th>Can do</th>
-                                <th class="center">Tournaments created</th>
+                                <th class="center">Tournaments</th>
+                                <th>Status</th>
+                                <th></th>
                             </tr>
                         </thead>
 
@@ -224,9 +182,13 @@ $admins = $conn->query("
 
                             <?php foreach ($admins as $admin): ?>
 
-                                <?php $isPlatform = $admin['admin_role'] === 'platform'; ?>
+                                <?php
+                                $isPlatform = $admin['admin_role'] === 'platform';
+                                $isActive = $admin['admin_active'] === 'active';
+                                $isMe = $admin['adminID'] === $_SESSION['userid'];
+                                ?>
 
-                                <tr>
+                                <tr class="<?= $isActive ? '' : 'row-inactive' ?>">
                                     <td class="admin-id">
                                         <?= htmlspecialchars($admin['adminID']) ?>
                                         <?php if ($admin['adminID'] === $_SESSION['userid']): ?>
@@ -235,6 +197,9 @@ $admins = $conn->query("
                                     </td>
                                     <td>
                                         <?= htmlspecialchars($admin['admin_name']) ?>
+                                        <?php if (trim((string)$admin['admin_organization']) !== ''): ?>
+                                            <small class="organization"><?= htmlspecialchars($admin['admin_organization']) ?></small>
+                                        <?php endif; ?>
                                         <small><?= htmlspecialchars($admin['admin_email'] ?: $admin['admin_contact']) ?></small>
                                     </td>
                                     <td>
@@ -243,10 +208,30 @@ $admins = $conn->query("
                                         </span>
                                     </td>
                                     <td><?= htmlspecialchars($admin['admin_country'] ?: '-') ?></td>
-                                    <td class="responsibilities">
-                                        <?= htmlspecialchars(responsibilityText($admin['admin_role'])) ?>
-                                    </td>
                                     <td class="center"><?= (int)$admin['tournaments_created'] ?></td>
+                                    <td>
+                                        <span class="status-pill <?= $isActive ? 'active' : 'inactive' ?>">
+                                            <?= $isActive ? 'Active' : 'Inactive' ?>
+                                        </span>
+                                    </td>
+                                    <td class="row-actions">
+
+                                        <a class="action-btn" href="admin_admin_details.php?id=<?= urlencode($admin['adminID']) ?>">View</a>
+
+                                        <?php if (!$isMe): ?>
+                                            <form method="POST" action="admin_admins.php"
+                                                  onsubmit="return confirm('<?= $isActive
+                                                      ? 'Deactivate ' . htmlspecialchars(addslashes($admin['admin_name']), ENT_QUOTES) . '? They will not be able to log in.'
+                                                      : 'Activate ' . htmlspecialchars(addslashes($admin['admin_name']), ENT_QUOTES) . '? They will be able to log in again.' ?>');">
+                                                <input type="hidden" name="action" value="toggle_active">
+                                                <input type="hidden" name="adminID" value="<?= htmlspecialchars($admin['adminID']) ?>">
+                                                <button type="submit" class="action-btn <?= $isActive ? 'danger' : 'positive' ?>">
+                                                    <?= $isActive ? 'Deactivate' : 'Activate' ?>
+                                                </button>
+                                            </form>
+                                        <?php endif; ?>
+
+                                    </td>
                                 </tr>
 
                             <?php endforeach; ?>
@@ -259,122 +244,10 @@ $admins = $conn->query("
 
             </section>
 
-
-            <!-- ==========================================
-                 ADD ADMIN
-            =========================================== -->
-
-            <section class="card">
-
-                <h2>Add admin</h2>
-
-                <p class="new-id">New admin ID: <strong><?= htmlspecialchars(nextAdminID($conn)) ?></strong></p>
-
-                <form method="POST" action="admin_admins.php" class="add-form">
-
-                    <input type="hidden" name="action" value="add_admin">
-
-                    <div class="form-group">
-                        <label for="admin_name">Name <span class="required">*</span></label>
-                        <input type="text" id="admin_name" name="admin_name" maxlength="255" required
-                               value="<?= htmlspecialchars($form['admin_name']) ?>">
-                    </div>
-
-                    <div class="form-row">
-
-                        <div class="form-group">
-                            <label for="admin_password">Password <span class="required">*</span></label>
-                            <input type="password" id="admin_password" name="admin_password" minlength="6" maxlength="50" required>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="admin_password_confirm">Confirm password <span class="required">*</span></label>
-                            <input type="password" id="admin_password_confirm" name="admin_password_confirm" minlength="6" maxlength="50" required>
-                        </div>
-
-                    </div>
-
-                    <div class="form-row">
-
-                        <div class="form-group">
-                            <label for="admin_ic_passport">IC / Passport no. <span class="required">*</span></label>
-                            <input type="text" id="admin_ic_passport" name="admin_ic_passport" maxlength="50" required
-                                   value="<?= htmlspecialchars($form['admin_ic_passport']) ?>">
-                        </div>
-
-                        <div class="form-group">
-                            <label for="admin_gender">Gender <span class="required">*</span></label>
-                            <select id="admin_gender" name="admin_gender" required>
-                                <option value="">Select gender</option>
-                                <option value="male" <?= $form['admin_gender'] === 'male' ? 'selected' : '' ?>>Male</option>
-                                <option value="female" <?= $form['admin_gender'] === 'female' ? 'selected' : '' ?>>Female</option>
-                            </select>
-                        </div>
-
-                    </div>
-
-                    <div class="form-row">
-
-                        <div class="form-group">
-                            <label for="admin_contact">Contact no. <span class="required">*</span></label>
-                            <input type="text" id="admin_contact" name="admin_contact" maxlength="50" required
-                                   value="<?= htmlspecialchars($form['admin_contact']) ?>">
-                        </div>
-
-                        <div class="form-group">
-                            <label for="admin_email">Email</label>
-                            <input type="email" id="admin_email" name="admin_email" maxlength="255"
-                                   value="<?= htmlspecialchars($form['admin_email']) ?>">
-                        </div>
-
-                    </div>
-
-                    <div class="form-group">
-                        <label for="admin_country">Country <span class="required">*</span> <small>(required for Tournament Organizers)</small></label>
-                        <select id="admin_country" name="admin_country">
-                            <option value="">Select country</option>
-                            <?php foreach ($tournament_countries as $country): ?>
-                                <option value="<?= htmlspecialchars($country) ?>" <?= $form['admin_country'] === $country ? 'selected' : '' ?>>
-                                    <?= htmlspecialchars($country) ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-
-                        <label>Admin type <span class="required">*</span></label>
-
-                        <label class="choice">
-                            <input type="radio" name="admin_type" value="organizer" <?= $form['admin_type'] === 'organizer' ? 'checked' : '' ?>>
-                            <span>
-                                <strong>Tournament Organizer</strong>
-                                <small>Creates tournaments and can do everything on them (registrations, seeding, draws,
-                                rankings, editing) &ndash; but can't see or change anyone else's tournaments.</small>
-                            </span>
-                        </label>
-
-                        <label class="choice">
-                            <input type="radio" name="admin_type" value="platform" <?= $form['admin_type'] === 'platform' ? 'checked' : '' ?>>
-                            <span>
-                                <strong>Platform Admin</strong>
-                                <small>Everything: registrations, seeding, draws, rankings and adding admins.</small>
-                            </span>
-                        </label>
-
-                    </div>
-
-                    <button type="submit" class="add-btn">Add Admin</button>
-
-                </form>
-
-            </section>
-
         </div>
 
 
     </main>
-
 
 </body>
 

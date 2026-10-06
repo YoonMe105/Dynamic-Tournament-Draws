@@ -136,6 +136,49 @@ usort($thisWeek, function ($a, $b) {
 });
 
 
+/*
+|--------------------------------------------------------------------------
+| Players by country (top 5)
+|--------------------------------------------------------------------------
+| Nationalities are saved as words like MALAYSIAN; the chart shows the
+| country (Malaysia). Everyone outside the top 5 is counted in one line.
+*/
+
+function countryFromNationality($nationality)
+{
+    $countries = [
+        'MALAYSIAN' => 'Malaysia', 'SINGAPOREAN' => 'Singapore', 'AUSTRALIAN' => 'Australia',
+        'CHINESE' => 'China', 'INDIAN' => 'India', 'CANADIAN' => 'Canada', 'AMERICAN' => 'United States',
+        'BRITISH' => 'United Kingdom', 'ENGLISH' => 'England', 'JAPANESE' => 'Japan', 'KOREAN' => 'Korea',
+        'SOUTH KOREAN' => 'Korea', 'INDONESIAN' => 'Indonesia', 'FILIPINO' => 'Philippines',
+        'PHILIPPINE' => 'Philippines', 'THAI' => 'Thailand', 'PAKISTANI' => 'Pakistan',
+        'SRI LANKAN' => 'Sri Lanka', 'EGYPTIAN' => 'Egypt', 'NEW ZEALANDER' => 'New Zealand',
+        'TAIWANESE' => 'Chinese Taipei', 'MACANESE' => 'Macau', 'HONG KONGER' => 'Hong Kong',
+    ];
+
+    $nationality = strtoupper(trim((string)$nationality));
+
+    if ($nationality === '') {
+        return 'Not specified';
+    }
+
+    return $countries[$nationality] ?? ucwords(strtolower($nationality));
+}
+
+$countryCounts = [];
+
+foreach (fetchAll($conn, "SELECT player_nationality, COUNT(*) AS total FROM players GROUP BY player_nationality") as $row) {
+    $country = countryFromNationality($row['player_nationality']);
+    $countryCounts[$country] = ($countryCounts[$country] ?? 0) + (int)$row['total'];
+}
+
+arsort($countryCounts);
+
+$topCountries = array_slice($countryCounts, 0, 5, true);
+$otherCountries = array_slice($countryCounts, 5, null, true);
+$playersTotal = array_sum($countryCounts);
+$topCountryMax = $topCountries ? max($topCountries) : 0;
+
 $adminName = $_SESSION['admin_name'] ?? 'Admin';
 
 ?>
@@ -362,11 +405,102 @@ $adminName = $_SESSION['admin_name'] ?? 'Admin';
 
                 </section>
 
+
+                <!-- Players by country (top 5) -->
+
+                <section class="panel">
+
+                    <div class="panel-header">
+                        <span class="stat-icon tone-blue"><i class="fa-solid fa-earth-asia"></i></span>
+                        <h3>Players by country</h3>
+                        <span class="count-badge"><?= $playersTotal ?></span>
+                    </div>
+
+                    <?php if ($topCountries): ?>
+
+                        <ol class="country-chart" aria-label="Top 5 countries by number of players">
+
+                            <?php foreach ($topCountries as $country => $total): ?>
+
+                                <?php
+                                $share = $playersTotal > 0 ? round($total / $playersTotal * 100) : 0;
+                                $width = $topCountryMax > 0 ? max(2, round($total / $topCountryMax * 100)) : 0;
+                                $tip = $country . ' · ' . $total . ' player' . ($total === 1 ? '' : 's') . ' · ' . $share . '% of all players';
+                                ?>
+
+                                <li class="country-row" tabindex="0" data-tip="<?= htmlspecialchars($tip) ?>">
+                                    <span class="country-name"><?= htmlspecialchars($country) ?></span>
+                                    <span class="country-track">
+                                        <span class="country-bar" style="width: <?= $width ?>%"></span>
+                                    </span>
+                                    <span class="country-value"><?= $total ?></span>
+                                </li>
+
+                            <?php endforeach; ?>
+
+                        </ol>
+
+                        <?php if ($otherCountries): ?>
+                            <p class="country-other">
+                                + <?= array_sum($otherCountries) ?> player<?= array_sum($otherCountries) === 1 ? '' : 's' ?>
+                                from <?= count($otherCountries) ?> other countr<?= count($otherCountries) === 1 ? 'y' : 'ies' ?>
+                                (<?= htmlspecialchars(implode(', ', array_keys($otherCountries))) ?>)
+                            </p>
+                        <?php endif; ?>
+
+                        <div class="chart-tooltip" id="countryTooltip" role="tooltip" hidden></div>
+
+                    <?php else: ?>
+
+                        <p class="all-clear">No players yet.</p>
+
+                    <?php endif; ?>
+
+                </section>
+
             </div>
 
         </div>
 
     </main>
+
+
+    <script>
+        // Players by country: tooltip follows the hovered (or focused) row
+        (function () {
+
+            const tooltip = document.getElementById('countryTooltip');
+
+            if (!tooltip) {
+                return;
+            }
+
+            function show(row, x, y) {
+                tooltip.textContent = row.dataset.tip;
+                tooltip.hidden = false;
+
+                const box = row.closest('.panel').getBoundingClientRect();
+                tooltip.style.left = Math.min(x - box.left + 12, box.width - tooltip.offsetWidth - 8) + 'px';
+                tooltip.style.top = (y - box.top - tooltip.offsetHeight - 10) + 'px';
+            }
+
+            document.querySelectorAll('.country-row').forEach(function (row) {
+
+                row.addEventListener('mousemove', function (event) {
+                    show(row, event.clientX, event.clientY);
+                });
+
+                row.addEventListener('focus', function () {
+                    const r = row.getBoundingClientRect();
+                    show(row, r.left + r.width / 2, r.top);
+                });
+
+                row.addEventListener('mouseleave', function () { tooltip.hidden = true; });
+                row.addEventListener('blur', function () { tooltip.hidden = true; });
+            });
+
+        })();
+    </script>
 
 </body>
 

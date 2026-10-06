@@ -40,7 +40,7 @@ if (!$tournaments_result) {
 
 /* =========================
    SORT INTO THREE ROWS
-   1. Current:  not started yet - registration open, or closed and starting soon
+   1. Upcoming: not started yet - registration open, or closed and starting soon
    2. Ongoing:  started and not finished
    3. Previous: already finished
 ========================= */
@@ -372,7 +372,7 @@ function list_item($tournament, $badge, $badge_class, $hidden = false) {
 
 
         <!-- =========================
-            ROW 1: CURRENT (not started yet)
+            ROW 1: UPCOMING (not started yet)
         ========================== -->
 
         <section class="panel">
@@ -381,7 +381,7 @@ function list_item($tournament, $badge, $badge_class, $hidden = false) {
 
                 <h2>
                     <span class="dot dot-open"></span>
-                    Current Tournaments
+                    Upcoming Tournaments
                 </h2>
 
                 <span class="panel-count"><?= count($open_tournaments) + count($upcoming_tournaments) ?></span>

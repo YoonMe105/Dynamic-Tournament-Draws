@@ -293,6 +293,32 @@ input:focus {
 
 
 /* =========================
+    NEW ACCOUNT LINKS
+========================= */
+
+.register-links {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px solid #e6e8f0;
+    text-align: center;
+}
+
+.register-links a {
+    color: #050F59;
+    font-size: 14px;
+    font-weight: bold;
+    text-decoration: none;
+}
+
+.register-links a:hover {
+    text-decoration: underline;
+}
+
+
+/* =========================
     FOOTER
 ========================= */
 

@@ -234,3 +234,71 @@ aside li.menu-divider {
 	margin-top: 16px;
 	padding-top: 16px;
 }
+
+
+/* ---------- Sidebar dropdown (Users -> Admins / Players) ---------- */
+
+.submenu-toggle {
+	align-items: center;
+	background: none;
+	border: none;
+	border-radius: 7px;
+	color: var(--muted);
+	cursor: pointer;
+	display: flex;
+	font-family: inherit;
+	font-size: 0.95rem;
+	font-weight: 600;
+	justify-content: space-between;
+	padding: 13px 16px;
+	text-align: left;
+	transition: background-color 160ms ease, color 160ms ease;
+	width: 100%;
+}
+
+.submenu-toggle:hover,
+.submenu-toggle.active {
+	background: #fff5df;
+	color: #9a6818;
+}
+
+/* Arrow drawn with borders (works on every page, whatever icon set it loads) */
+.chevron {
+	border-bottom: 2px solid currentColor;
+	border-right: 2px solid currentColor;
+	height: 7px;
+	margin-right: 2px;
+	transform: rotate(45deg) translateY(-2px);
+	transition: transform 160ms ease;
+	width: 7px;
+}
+
+.has-submenu.open .chevron {
+	transform: rotate(-135deg) translateY(-2px);
+}
+
+.submenu {
+	display: none;
+	list-style: none;
+	margin: 6px 0 0;
+	padding: 0 0 0 14px;
+}
+
+.has-submenu.open .submenu {
+	display: block;
+}
+
+.submenu li + li {
+	margin-top: 4px;
+}
+
+.submenu a {
+	border-left: 2px solid var(--line);
+	border-radius: 0 7px 7px 0;
+	font-size: 0.9rem;
+	padding: 10px 14px;
+}
+
+.submenu a.active {
+	border-left-color: #9a6818;
+}

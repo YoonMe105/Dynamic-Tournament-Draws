@@ -18,6 +18,23 @@ require_once "../db.php";
 $playerID = $_SESSION["userid"];
 
 
+// A player deactivated by a Platform Admin is logged out straight away
+$activeStmt = $conn->prepare("SELECT player_active FROM players WHERE playerID = ?");
+$activeStmt->bind_param("s", $playerID);
+$activeStmt->execute();
+
+$activeRow = $activeStmt->get_result()->fetch_assoc();
+
+$activeStmt->close();
+
+if (!$activeRow || $activeRow['player_active'] !== 'active') {
+    session_unset();
+    session_destroy();
+    header("Location: ../login.php?deactivated=1");
+    exit();
+}
+
+
 /*
 |--------------------------------------------------------------------------
 | Records

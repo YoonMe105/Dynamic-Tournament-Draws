@@ -1,0 +1,307 @@
+/* =========================================
+   PLAYERS LIST (same look as the Admins page)
+========================================= */
+
+[hidden] {
+    display: none !important;
+}
+
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
+
+.players-page {
+    padding: 20px 28px 60px;
+    color: #333;
+}
+
+
+/* ---------- Header ---------- */
+
+.page-title {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin-bottom: 20px;
+}
+
+.page-title h1 {
+    margin: 0 0 6px;
+    color: #20283a;
+    font-size: 28px;
+}
+
+.page-title p {
+    margin: 0;
+    color: #6b7280;
+    font-size: 15px;
+}
+
+.add-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 11px 20px;
+    border-radius: 8px;
+    background: #993D86;
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.add-btn:hover {
+    background: #7f316f;
+}
+
+.success-message {
+    margin-bottom: 18px;
+    padding: 13px 16px;
+    border: 1px solid #c5e6cf;
+    border-radius: 8px;
+    background: #eaf7ee;
+    color: #287a43;
+    font-size: 14px;
+}
+
+.card {
+    padding: 20px 22px;
+    background: #ffffff;
+    border: 1px solid #dfe3e8;
+    border-radius: 14px;
+}
+
+
+/* ---------- Search & filters ---------- */
+
+.filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.search-box {
+    position: relative;
+    flex: 1 1 260px;
+    max-width: 380px;
+}
+
+.search-box i {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #9aa0b0;
+    font-size: 13px;
+}
+
+.search-box input,
+.filters select {
+    box-sizing: border-box;
+    height: 40px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #333;
+    font-family: inherit;
+    font-size: 14px;
+}
+
+.search-box input {
+    width: 100%;
+    padding: 0 12px 0 34px;
+}
+
+.filters select {
+    padding: 0 10px;
+    cursor: pointer;
+}
+
+.search-box input:focus,
+.filters select:focus {
+    outline: none;
+    border-color: #993D86;
+    box-shadow: 0 0 0 3px rgba(153, 61, 134, 0.1);
+}
+
+.result-count {
+    margin-left: auto;
+    color: #6b7280;
+    font-size: 13px;
+}
+
+
+/* ---------- Table ---------- */
+
+.table-wrap {
+    overflow-x: auto;
+}
+
+.players-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.players-table th {
+    padding: 10px;
+    border-bottom: 1px solid #e7e9f0;
+    color: #6b7280;
+    font-size: 12px;
+    text-align: left;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    white-space: nowrap;
+}
+
+.players-table td {
+    padding: 12px 10px;
+    border-bottom: 1px solid #f0f1f5;
+    vertical-align: middle;
+}
+
+.players-table tbody tr:hover {
+    background: #fafafd;
+}
+
+.players-table .center {
+    text-align: center;
+}
+
+.player-cell {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.player-cell strong {
+    display: block;
+    color: #20283a;
+}
+
+.player-cell small {
+    color: #8a8fa3;
+    font-size: 12px;
+}
+
+.avatar {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-shrink: 0;
+    width: 38px;
+    height: 38px;
+    overflow: hidden;
+    border-radius: 50%;
+    background: #f3e8f1;
+    color: #993D86;
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.contact-cell span {
+    display: block;
+    color: #4a5068;
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+.contact-cell span + span {
+    margin-top: 3px;
+}
+
+.contact-cell i {
+    width: 14px;
+    margin-right: 4px;
+    color: #9aa0b0;
+}
+
+.status-pill {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.status-pill.active {
+    background: #e3f4e8;
+    color: #1f7a3f;
+}
+
+.status-pill.inactive {
+    background: #f0f1f4;
+    color: #6b7280;
+}
+
+
+/* ---------- Row actions ---------- */
+
+.actions {
+    white-space: nowrap;
+    text-align: right;
+}
+
+.actions form {
+    display: inline;
+    margin: 0;
+}
+
+.action-btn {
+    display: inline-block;
+    padding: 6px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 7px;
+    background: #ffffff;
+    color: #444;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.action-btn:hover {
+    border-color: #993D86;
+    color: #993D86;
+}
+
+.action-btn.danger {
+    border-color: #f1c4c4;
+    color: #b42318;
+}
+
+.action-btn.danger:hover {
+    background: #fdecec;
+}
+
+.action-btn.positive {
+    border-color: #c5e6cf;
+    color: #1f7a3f;
+}
+
+.action-btn.positive:hover {
+    background: #eaf7ee;
+}
+
+.no-results {
+    margin: 0;
+    padding: 30px 10px;
+    color: #6b7280;
+    text-align: center;
+}

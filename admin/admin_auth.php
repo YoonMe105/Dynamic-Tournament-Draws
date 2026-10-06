@@ -33,7 +33,7 @@ if (!isset($_SESSION['role'], $_SESSION['userid']) || $_SESSION['role'] !== 'adm
 | apply straight away.
 */
 
-$authStmt = $conn->prepare("SELECT adminID, admin_name, admin_country, admin_profile, admin_role FROM admins WHERE adminID = ?");
+$authStmt = $conn->prepare("SELECT adminID, admin_name, admin_country, admin_profile, admin_role, admin_active FROM admins WHERE adminID = ?");
 $authStmt->bind_param("s", $_SESSION['userid']);
 $authStmt->execute();
 
@@ -45,6 +45,14 @@ if (!$currentAdmin) {
     session_unset();
     session_destroy();
     header('Location: ../login.php');
+    exit;
+}
+
+// Deactivated by a Platform Admin: logged out straight away
+if ($currentAdmin['admin_active'] !== 'active') {
+    session_unset();
+    session_destroy();
+    header('Location: ../login.php?deactivated=1');
     exit;
 }
 

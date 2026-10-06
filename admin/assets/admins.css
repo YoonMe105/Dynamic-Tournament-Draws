@@ -342,3 +342,250 @@
     color: #8a8fa3;
     font-weight: 400;
 }
+
+.admins-table small.organization {
+    color: #993D86;
+    font-weight: 600;
+}
+
+
+/* ---------- Admins list page / Add Admin page ---------- */
+
+.page-title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 14px;
+}
+
+.add-admin-btn {
+    display: inline-flex;
+    align-items: center;
+    padding: 11px 20px;
+    border-radius: 8px;
+    background: #993D86;
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.add-admin-btn:hover {
+    background: #7f316f;
+}
+
+.back-link {
+    display: inline-block;
+    margin: 0 0 12px;
+    color: #993D86;
+    font-size: 14px;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.back-link:hover {
+    text-decoration: underline;
+}
+
+.form-page {
+    max-width: 760px;
+}
+
+
+/* ---------- Status, row buttons (Admins list + details) ---------- */
+
+.status-pill {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.status-pill.active {
+    background: #e3f4e8;
+    color: #1f7a3f;
+}
+
+.status-pill.inactive {
+    background: #f0f1f4;
+    color: #6b7280;
+}
+
+.row-inactive td {
+    color: #8a8fa3;
+}
+
+.row-actions {
+    text-align: right;
+    white-space: nowrap;
+}
+
+.row-actions form {
+    display: inline;
+    margin: 0;
+}
+
+.action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 7px;
+    background: #ffffff;
+    color: #444;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.action-btn:hover {
+    border-color: #993D86;
+    color: #993D86;
+}
+
+.action-btn.danger {
+    border-color: #f1c4c4;
+    color: #b42318;
+}
+
+.action-btn.danger:hover {
+    background: #fdecec;
+}
+
+.action-btn.positive {
+    border-color: #c5e6cf;
+    color: #1f7a3f;
+}
+
+.action-btn.positive:hover {
+    background: #eaf7ee;
+}
+
+.action-btn.big {
+    padding: 10px 16px;
+    font-size: 14px;
+}
+
+
+/* ---------- Admin details page ---------- */
+
+.detail-header {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+}
+
+.detail-avatar {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-shrink: 0;
+    width: 72px;
+    height: 72px;
+    overflow: hidden;
+    border-radius: 50%;
+    background: #993D86;
+    color: #ffffff;
+    font-size: 24px;
+    font-weight: 800;
+}
+
+.detail-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.detail-title {
+    flex: 1;
+    min-width: 200px;
+}
+
+.detail-title h1 {
+    margin: 0 0 4px;
+    color: #20283a;
+    font-size: 24px;
+}
+
+.detail-organization {
+    margin: 0 0 8px;
+    color: #993D86;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.detail-badges {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.detail-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr);
+    gap: 20px;
+    align-items: start;
+}
+
+.detail-list {
+    margin: 0;
+}
+
+.detail-list div {
+    display: flex;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 10px 0;
+    border-bottom: 1px solid #f0f1f5;
+    font-size: 14px;
+}
+
+.detail-list dt {
+    flex-shrink: 0;
+    color: #6b7280;
+}
+
+.detail-list dd {
+    margin: 0;
+    color: #20283a;
+    font-weight: 600;
+    text-align: right;
+    word-break: break-word;
+}
+
+.muted-dash {
+    color: #a0a4b0;
+}
+
+@media (max-width: 1100px) {
+
+    .detail-layout {
+        grid-template-columns: 1fr;
+    }
+
+}
+
+.password-note {
+    margin: 0 0 14px;
+    padding: 10px 12px;
+    border: 1px dashed #d8c7d4;
+    border-radius: 8px;
+    background: #fbf7fa;
+    color: #4a5068;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.password-note[hidden],
+.form-row[hidden] {
+    display: none;
+}

@@ -7,6 +7,11 @@ $error = "";
 $login_success = false;
 $redirect_url = "";
 
+// Sent here by a player page after the account was deactivated
+if (isset($_GET['deactivated'])) {
+    $error = "This account has been deactivated. Please contact the organiser.";
+}
+
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
     $userid = trim($_POST["userid"]);
@@ -18,7 +23,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     ==========================================
     */
 
-    $admin_query = "SELECT adminid, admin_name, admin_password, admin_role
+    $admin_query = "SELECT adminid, admin_name, admin_password, admin_role, admin_active
                     FROM admins
                     WHERE adminid = ?";
 
@@ -37,7 +42,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
         $admin = $admin_result->fetch_assoc();
 
-        if ($password === $admin["admin_password"]) {
+        if ($password === $admin["admin_password"] && $admin["admin_active"] !== 'active') {
+
+            // Deactivated by a Platform Admin (Users > Admins)
+            $error = "This account has been deactivated. Please contact a Platform Admin.";
+
+        } elseif ($password === $admin["admin_password"]) {
 
             $_SESSION["userid"] = $admin["adminid"];
             $_SESSION["role"] = "admin";
@@ -63,7 +73,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         ==========================================
         */
 
-        $player_query = "SELECT playerid, player_first_name, player_last_name, player_password
+        $player_query = "SELECT playerid, player_first_name, player_last_name, player_password, player_active
                          FROM players
                          WHERE playerid = ?";
 
@@ -82,7 +92,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
             $player = $player_result->fetch_assoc();
 
-            if ($password === $player["player_password"]) {
+            if ($password === $player["player_password"] && $player["player_active"] !== 'active') {
+
+                // Deactivated by a Platform Admin (Users > Players)
+                $error = "This account has been deactivated. Please contact the organiser.";
+
+            } elseif ($password === $player["player_password"]) {
 
                 $_SESSION["userid"] = $player["playerid"];
                 $_SESSION["role"] = "player";
@@ -119,7 +134,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
 
-    <link href="./assets/css/style.css" rel="stylesheet" type="text/css" />
+    <link href="./assets/css/style.css?v=<?= filemtime(__DIR__ . '/assets/css/style.css') ?>" rel="stylesheet" type="text/css" />
 </head>
 <body>
 
@@ -194,6 +209,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 <a href="password_reset.php" target="_blank" class="forgot-password" >
                     Forgot Password?
                 </a>
+
+
+                <!-- NEW ACCOUNTS -->
+
+                <div class="register-links">
+                    <a href="player/signin.php">New player? Create an account</a>
+                    <a href="organizer_register.php">Want to host tournaments? Register as an organizer</a>
+                </div>
 
 
                 <!-- FOOTER -->

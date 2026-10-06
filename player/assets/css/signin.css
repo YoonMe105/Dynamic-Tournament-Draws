@@ -156,3 +156,67 @@ body {
         font-size: 26px;
     }
 }
+/* Links under the form (log in / apply) */
+.signin-links {
+    margin-top: 18px;
+    text-align: center;
+    color: #777;
+    font-size: 14px;
+}
+
+.signin-links a {
+    color: #993D86;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.signin-links a:hover {
+    text-decoration: underline;
+}
+
+/* After sending: waiting for approval */
+.application-sent {
+    text-align: center;
+}
+
+.application-sent .sent-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 64px;
+    height: 64px;
+    margin-bottom: 14px;
+    border-radius: 50%;
+    background: #f6eaf3;
+    color: #993D86;
+    font-size: 26px;
+}
+
+.application-sent p {
+    margin-bottom: 12px;
+    color: #555;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.application-sent .your-id {
+    padding: 12px;
+    border: 1px dashed #d8c7d4;
+    border-radius: 8px;
+    background: #fbf7fa;
+    color: #333;
+    font-size: 16px;
+}
+
+.application-sent .hint {
+    color: #777;
+    font-size: 13px;
+}
+
+.signin-btn.as-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 8px;
+    text-decoration: none;
+}
