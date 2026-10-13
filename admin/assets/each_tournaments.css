@@ -864,3 +864,46 @@ body {
     border: 1px solid #f3b8b1;
     cursor: help;
 }
+
+
+/* Registered Players header: count + Register a Player */
+.players-header-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+}
+
+.register-player-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 16px;
+    border: 1.5px solid #993d86;
+    border-radius: 20px;
+    background: #fff;
+    color: #993d86;
+    font-size: 14px;
+    font-weight: bold;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.register-player-btn:hover {
+    background: #993d86;
+    color: #fff;
+}
+
+
+/* Registered Players: at most 8 rows, the rest scrolls inside the table
+   (exact height set by limitTableRows() in admin_each_tournament.php) */
+.players-scroll {
+    max-height: 540px;
+    overflow-y: auto;
+}
+
+.players-scroll thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}

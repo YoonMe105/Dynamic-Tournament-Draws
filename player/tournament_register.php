@@ -74,27 +74,7 @@ if ($hasDob && $hasCutoff) {
 | date but the player has no date of birth, age categories are blocked.
 */
 
-function categoryMaxAge($code)
-{
-    return preg_match('/^[BG]U(\d+)$/', $code, $matches) ? (int) $matches[1] : null;
-}
-
-
-/*
-| Gender of a category: BU / Men = male, GU / Women = female, else null
-*/
-function categoryGender($code)
-{
-    if (preg_match('/^BU\d+$/', $code) || strcasecmp($code, 'Men') === 0) {
-        return 'male';
-    }
-
-    if (preg_match('/^GU\d+$/', $code) || strcasecmp($code, 'Women') === 0) {
-        return 'female';
-    }
-
-    return null;
-}
+// categoryMaxAge() / categoryGender(): see ../registration_functions.php
 
 $playerGender = strtolower(trim($player['player_gender'] ?? ''));
 $playerGender = in_array($playerGender, ['male', 'female'], true) ? $playerGender : null;

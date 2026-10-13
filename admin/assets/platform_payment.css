@@ -273,3 +273,71 @@
     font-size: 12px;
     line-height: 1.6;
 }
+
+
+/* ---------- Choose a plan ---------- */
+
+.plan-options {
+    display: grid;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.plan-option {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    padding: 14px 16px;
+    border: 1.5px solid #dfe3e8;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+}
+
+.plan-option:hover {
+    border-color: #c9a3c0;
+}
+
+.plan-option:has(input:checked) {
+    border-color: #993D86;
+    background: #fbf5fa;
+}
+
+.plan-option input {
+    margin-top: 4px;
+    accent-color: #993D86;
+}
+
+.plan-body {
+    display: grid;
+    gap: 3px;
+}
+
+.plan-name {
+    color: #20283a;
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.plan-name i {
+    width: 18px;
+    color: #993D86;
+}
+
+.plan-price {
+    color: #20283a;
+    font-size: 20px;
+    font-weight: 800;
+}
+
+.plan-price small {
+    color: #6b7280;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.plan-note {
+    color: #6b7280;
+    font-size: 13px;
+    line-height: 1.4;
+}

@@ -205,7 +205,7 @@ function open_card($tournament) {
             </span>
 
             <?php global $conn; if (platformFeeUnpaid($conn, $id)): ?>
-                <span class="closing-badge urgent" style="bottom:auto;top:10px;right:10px;">Fee unpaid</span>
+                <span class="closing-badge urgent" style="bottom:auto;top:10px;right:10px;">Unpaid</span>
             <?php endif; ?>
 
             <span class="closing-badge <?= $days <= 3 ? 'urgent' : '' ?>">

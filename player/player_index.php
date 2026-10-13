@@ -98,7 +98,7 @@ foreach ($tournaments as &$tournament) {
 
     $tournament['my_fee'] = playerFee($tournament, $player);
 
-    // Organizer's T_Software fee unpaid: shown, but registration isn't open yet
+    // Organizer's T_Software subscription unpaid: shown, but registration isn't open yet
     $tournament['opens_soon'] = platformFeeUnpaid($conn, $tournament['tournamentID']);
 
     $closingSoonCount += $tournament['closing_soon'] ? 1 : 0;

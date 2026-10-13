@@ -340,7 +340,7 @@ function categoryBadge($registrationID, $category, $wrongCategories)
 
     <link href="./assets/style.css" rel="stylesheet" type="text/css">
 
-    <link href="./assets/each_tournaments.css" rel="stylesheet" type="text/css">
+    <link href="./assets/each_tournaments.css?v=<?= filemtime(__DIR__ . '/assets/each_tournaments.css') ?>" rel="stylesheet" type="text/css">
 
     <!-- Font Awesome (detail icons) -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css">
@@ -570,8 +570,17 @@ function categoryBadge($registrationID, $category, $wrongCategories)
             </div>
 
 
-            <div class="player-count">
-                <?= $playersResult->num_rows ?> Players
+            <div class="players-header-actions">
+
+                <div class="player-count">
+                    <?= $playersResult->num_rows ?> Players
+                </div>
+
+                <a href="admin_register_player.php?id=<?= (int) $tournamentID ?>" class="register-player-btn">
+                    <i class="fa-solid fa-user-plus"></i>
+                    Register a Player
+                </a>
+
             </div>
 
         </div>
@@ -734,7 +743,7 @@ function categoryBadge($registrationID, $category, $wrongCategories)
                         <?php if ($paymentResult->num_rows > 0): ?>
 
 
-                            <div class="table-wrapper">
+                            <div class="table-wrapper players-scroll">
 
                                 <table class="players-table">
 
@@ -965,7 +974,7 @@ function categoryBadge($registrationID, $category, $wrongCategories)
                         <?php if ($endorsementResult->num_rows > 0): ?>
 
 
-                            <div class="table-wrapper">
+                            <div class="table-wrapper players-scroll">
 
                                 <table class="players-table">
 
@@ -1256,14 +1265,6 @@ function categoryBadge($registrationID, $category, $wrongCategories)
 
 
                 <a
-                    href="admin_draw.php?id=<?= $tournamentID ?>&category=<?= urlencode($selectedCategory) ?>"
-                    class="btn manage-seeding"
-                >
-                    Draw
-                </a>
-
-
-                <a
                     href="admin_ranking_check.php?id=<?= $tournamentID ?>"
                     class="btn manage-seeding"
                 >
@@ -1331,7 +1332,7 @@ function categoryBadge($registrationID, $category, $wrongCategories)
                 <strong><?= htmlspecialchars($selectedCategory) ?></strong>
             </div>
 
-            <div class="table-wrapper">
+            <div class="table-wrapper players-scroll">
 
                 <table class="players-table">
 
@@ -1700,7 +1701,58 @@ function filterPlayers() {
 
     });
 
+
+    limitTableRows();
+
 }
+
+
+/*
+|--------------------------------------------------------------------------
+| SHOW AT MOST 8 PLAYERS (scroll inside the table)
+|--------------------------------------------------------------------------
+| The visible table is cut to the header + its first 8 shown rows; the rest
+| scrolls inside it. Measured from the real rows, so it fits any row height.
+*/
+
+const MAX_VISIBLE_PLAYERS = 8;
+
+function limitTableRows() {
+
+    document.querySelectorAll('.players-scroll').forEach(function(wrapper) {
+
+        // Hidden tab: measure it when it is shown
+        if (wrapper.offsetParent === null) {
+            return;
+        }
+
+        const head = wrapper.querySelector('thead');
+
+        const rows = Array.from(
+            wrapper.querySelectorAll('tbody tr')
+        ).filter(function(row) {
+            return row.style.display !== 'none';
+        });
+
+        if (rows.length <= MAX_VISIBLE_PLAYERS) {
+            wrapper.style.maxHeight = '';
+            return;
+        }
+
+        let height = head ? head.offsetHeight : 0;
+
+        rows.slice(0, MAX_VISIBLE_PLAYERS).forEach(function(row) {
+            height += row.offsetHeight;
+        });
+
+        // Plus the sideways scrollbar, which sits inside the box
+        height += wrapper.offsetHeight - wrapper.clientHeight;
+
+        wrapper.style.maxHeight = height + 'px';
+    });
+}
+
+window.addEventListener('resize', limitTableRows);
 
 
 /*

@@ -367,3 +367,20 @@ padding: 20px 28px 60px;
     font-size: 13px;
     color: #b45309;
 }
+
+
+/* Back to Tournament - same as on admin_each_tournament.php */
+.back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin: 4px 0 14px;
+    color: #993d86;
+    font-size: 14px;
+    font-weight: bold;
+    text-decoration: none;
+}
+
+.back-link:hover {
+    text-decoration: underline;
+}

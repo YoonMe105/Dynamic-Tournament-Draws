@@ -131,6 +131,7 @@ foreach ($categories as $category) {
     $categoryInfo[$category] = [
         'players' => count($seeded) + count($unseeded),
         'seeded' => count($seeded),
+        'unseeded' => count($unseeded),
         'has_draw' => drawExists($conn, $tournamentID, $category)
     ];
 }
@@ -287,10 +288,10 @@ $drawOutOfDate = $selectedInfo && $selectedInfo['has_draw'] && $drawPlayerCount 
 
                 <div class="draw-actions">
 
-                    <?php if ($selectedInfo['players'] >= 2): ?>
+                    <?php if ($selectedInfo['players'] >= 2 && $selectedInfo['unseeded'] === 0): ?>
 
                         <form method="POST" action="<?= htmlspecialchars($pageUrl) ?>"
-                              onsubmit="return confirmGenerate(<?= $selectedInfo['has_draw'] ? 'true' : 'false' ?>, <?= $selectedInfo['seeded'] ?>);">
+                              onsubmit="return confirmGenerate(<?= $selectedInfo['has_draw'] ? 'true' : 'false' ?>);">
 
                             <input type="hidden" name="action" value="generate">
                             <input type="hidden" name="category" value="<?= htmlspecialchars($selectedCategory) ?>">
@@ -348,11 +349,14 @@ $drawOutOfDate = $selectedInfo && $selectedInfo['has_draw'] && $drawPlayerCount 
                     At least 2 endorsed players are needed to make a draw for <?= htmlspecialchars($selectedCategory) ?>.
                 </div>
 
-            <?php elseif ($selectedInfo['seeded'] === 0 && !$selectedInfo['has_draw']): ?>
+            <?php elseif ($selectedInfo['unseeded'] > 0): ?>
 
                 <div class="warning-message">
-                    No seeds are set for <?= htmlspecialchars($selectedCategory) ?> yet &ndash; every player will be drawn at random.
-                    Run the seeding first if you want seeded players.
+                    <strong><?= $selectedInfo['unseeded'] ?> of <?= $selectedInfo['players'] ?> players</strong>
+                    in <?= htmlspecialchars($selectedCategory) ?> have no seed number yet, so the draw can't be
+                    <?= $selectedInfo['has_draw'] ? 'remade' : 'made' ?>.
+                    Run <strong>Automatic Seeding</strong> (or set the seeds) on
+                    <a href="admin_seeding.php?id=<?= $tournamentID ?>&category=<?= urlencode($selectedCategory) ?>">Manage Seeding</a> first.
                 </div>
 
             <?php endif; ?>
@@ -381,7 +385,11 @@ $drawOutOfDate = $selectedInfo && $selectedInfo['has_draw'] && $drawPlayerCount 
 
                 <div class="empty-draw">
                     <h2>No draw yet</h2>
-                    <p>Press <strong>Make Draw</strong> to place the players for <?= htmlspecialchars($selectedCategory) ?>.</p>
+                    <?php if ($selectedInfo['unseeded'] > 0): ?>
+                        <p>Seed every player in <?= htmlspecialchars($selectedCategory) ?> first, then come back to make the draw.</p>
+                    <?php else: ?>
+                        <p>Press <strong>Make Draw</strong> to place the players for <?= htmlspecialchars($selectedCategory) ?>.</p>
+                    <?php endif; ?>
                 </div>
 
             <?php endif; ?>
@@ -395,17 +403,11 @@ $drawOutOfDate = $selectedInfo && $selectedInfo['has_draw'] && $drawPlayerCount 
     <script src="assets/bracket_download.js?v=<?= filemtime(__DIR__ . '/assets/bracket_download.js') ?>"></script>
 
     <script>
-        function confirmGenerate(hasDraw, seeded) {
+        function confirmGenerate(hasDraw) {
 
-            let message = hasDraw
+            return confirm(hasDraw
                 ? 'Remake the draw? The current draw will be replaced with a new one.'
-                : 'Make the draw for this category?';
-
-            if (seeded === 0) {
-                message += '\n\nNo seeds are set, so every player will be drawn at random.';
-            }
-
-            return confirm(message);
+                : 'Make the draw for this category?');
         }
     </script>
 

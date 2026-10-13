@@ -8,7 +8,7 @@ require_once 'payment_config.php';
 
 /*
 |--------------------------------------------------------------------------
-| TEST MODE card checkout (no Stripe key set up)
+| TEST MODE card checkout (no Stripe key set up) - both subscription plans
 |--------------------------------------------------------------------------
 | Stands in for Stripe's card page so the payment flow can be tried. Only
 | works while $stripeSecretKey is empty, and only with the one-time token
@@ -21,25 +21,24 @@ require_once 'payment_config.php';
 |   4000 0000 0000 0002  -> declined
 */
 
-$tournamentID = isset($_GET['id']) ? intval($_GET['id']) : 0;
-
-requireTournamentAccess($tournamentID);
-
 $checkout = $_SESSION['platform_test_checkout'] ?? null;
 $validToken = trim($stripeSecretKey) === ''
     && $checkout
-    && (int)$checkout['tournamentID'] === $tournamentID
+    && (string)$checkout['adminID'] === (string)$_SESSION['userid']
     && hash_equals($checkout['token'], (string)($_GET['token'] ?? ''));
 
 if (!$validToken) {
-    header("Location: admin_platform_payment.php?id=" . $tournamentID);
+    header("Location: admin_my_subscription.php");
     exit;
 }
 
-$payment = tournamentPlatformPayment($conn, $tournamentID);
+$plan = $checkout['plan'];
+$tournamentID = (int)$checkout['tournamentID'];
+$backUrl = $tournamentID > 0 ? "admin_platform_payment.php?id=" . $tournamentID : "admin_platform_payment.php?annual=1";
 
-if (!$payment || $payment['status'] === 'paid') {
-    header("Location: admin_platform_payment.php?id=" . $tournamentID);
+// Per tournament: only while that tournament is still unpaid
+if ($plan === 'per_tournament' && !platformFeeUnpaid($conn, $tournamentID)) {
+    header("Location: " . $backUrl);
     exit;
 }
 
@@ -49,18 +48,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $last4 = preg_match('/^\d{4}$/', $_POST['card_last4'] ?? '') ? $_POST['card_last4'] : '0000';
     $brand = in_array($_POST['card_brand'] ?? '', ['Visa', 'Mastercard', 'Amex', 'Card'], true) ? $_POST['card_brand'] : 'Card';
+    $reference = $brand . ' **** ' . $last4 . ' / TEST-' . date('YmdHis');
 
-    if (($_POST['result'] ?? '') === 'pay') {
-        markPlatformFeePaid($conn, $tournamentID, 'card (test)', $brand . ' **** ' . $last4 . ' / TEST-' . date('YmdHis'));
-        header("Location: admin_platform_payment.php?id=" . $tournamentID . "&paid=1");
-    } else {
-        header("Location: admin_platform_payment.php?id=" . $tournamentID . "&cancelled=1");
+    if (($_POST['result'] ?? '') !== 'pay') {
+        header("Location: " . $backUrl . "&cancelled=1");
+        exit;
     }
 
+    if ($plan === 'annual') {
+        recordAnnualSubscription($conn, $checkout['adminID'], $checkout['amount'], $checkout['currency'], 'card (test)', $reference);
+    } else {
+        markPlatformFeePaid($conn, $tournamentID, 'card (test)', $reference);
+    }
+
+    header("Location: " . ($tournamentID > 0
+        ? "admin_platform_payment.php?id=" . $tournamentID . "&paid=" . $plan
+        : "admin_my_subscription.php?paid=" . $plan));
     exit;
 }
 
-$tournamentName = $conn->query("SELECT tournament_name FROM tournament WHERE tournamentID = " . (int)$tournamentID)->fetch_assoc()['tournament_name'] ?? '';
+if ($plan === 'annual') {
+    $period = nextAnnualPeriod($conn, $checkout['adminID']);
+    $description = 'Annual subscription &middot; ' . date('d M Y', strtotime($period['start'])) . ' &ndash; ' . date('d M Y', strtotime($period['end']));
+} else {
+    $tournamentName = $conn->query("SELECT tournament_name FROM tournament WHERE tournamentID = " . $tournamentID)->fetch_assoc()['tournament_name'] ?? '';
+    $description = 'Per tournament &middot; ' . htmlspecialchars($tournamentName);
+}
+
+$amountText = formatPlatformFee($checkout['amount'], $checkout['currency']);
+$formAction = 'admin_platform_checkout_test.php?token=' . htmlspecialchars($checkout['token']);
 
 ?>
 
@@ -87,12 +103,12 @@ $tournamentName = $conn->query("SELECT tournament_name FROM tournament WHERE tou
 
         <h1>T_Software</h1>
 
-        <p class="muted"><?= htmlspecialchars($tournamentName) ?></p>
+        <p class="muted"><?= $description ?></p>
 
-        <p class="checkout-amount"><?= htmlspecialchars(formatPlatformFee($payment['amount'], $payment['currency'])) ?></p>
+        <p class="checkout-amount"><?= htmlspecialchars($amountText) ?></p>
 
         <form method="POST" id="cardForm" class="card-form" novalidate
-              action="admin_platform_checkout_test.php?id=<?= $tournamentID ?>&token=<?= htmlspecialchars($checkout['token']) ?>">
+              action="<?= $formAction ?>">
 
             <!-- Only these go to the server -->
             <input type="hidden" name="result" value="pay">
@@ -122,12 +138,12 @@ $tournamentName = $conn->query("SELECT tournament_name FROM tournament WHERE tou
             <p class="card-error" id="cardError" hidden></p>
 
             <button type="submit" class="pay-btn" id="payBtn">
-                Pay <?= htmlspecialchars(formatPlatformFee($payment['amount'], $payment['currency'])) ?>
+                Pay <?= htmlspecialchars($amountText) ?>
             </button>
 
         </form>
 
-        <form method="POST" action="admin_platform_checkout_test.php?id=<?= $tournamentID ?>&token=<?= htmlspecialchars($checkout['token']) ?>">
+        <form method="POST" action="<?= $formAction ?>">
             <input type="hidden" name="result" value="cancel">
             <button type="submit" class="cancel-btn">Cancel</button>
         </form>

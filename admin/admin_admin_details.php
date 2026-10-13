@@ -39,7 +39,7 @@ $isMe = $admin['adminID'] === $_SESSION['userid'];
 $stmt = $conn->prepare("
     SELECT t.tournamentID, t.tournament_name, t.tournament_startdate, t.tournament_enddate,
            t.tournament_type, t.tournament_country,
-           pp.status AS fee_status, pp.amount AS fee_amount, pp.currency AS fee_currency,
+           pp.status AS fee_status, pp.plan AS fee_plan, pp.amount AS fee_amount, pp.currency AS fee_currency,
            (SELECT COUNT(*) FROM tournament_register tr WHERE tr.tournamentID = t.tournamentID) AS players
     FROM tournament t
     LEFT JOIN tournament_platform_payments pp ON pp.tournamentID = t.tournamentID
@@ -52,6 +52,9 @@ $stmt->execute();
 $tournaments = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
 $stmt->close();
+
+// Organizers: their annual subscription (running or the last one)
+$annualSubscription = $isPlatform ? null : latestAnnualSubscription($conn, $adminID);
 
 
 function detailDate($value, $format = 'd M Y')
@@ -207,6 +210,20 @@ $initials = strtoupper(implode('', array_map(function ($word) {
                     <div><dt>Gender</dt><dd><?= htmlspecialchars(ucfirst(strtolower(trim((string)$admin['admin_gender']))) ?: '-') ?></dd></div>
                     <div><dt>Country</dt><dd><?= htmlspecialchars(trim((string)$admin['admin_country']) ?: '-') ?></dd></div>
                     <div><dt>Member since</dt><dd><?= detailDate($admin['admin_register']) ?></dd></div>
+                    <?php if (!$isPlatform): ?>
+                        <div>
+                            <dt>Subscription</dt>
+                            <dd>
+                                <?php if ($annualSubscription && $annualSubscription['end_date'] >= date('Y-m-d')): ?>
+                                    Annual plan until <?= detailDate($annualSubscription['end_date']) ?>
+                                <?php elseif ($annualSubscription): ?>
+                                    Per tournament (annual plan ended <?= detailDate($annualSubscription['end_date']) ?>)
+                                <?php else: ?>
+                                    Per tournament
+                                <?php endif; ?>
+                            </dd>
+                        </div>
+                    <?php endif; ?>
                     <div>
                         <dt>Can do</dt>
                         <dd><?= $isPlatform
@@ -237,7 +254,7 @@ $initials = strtoupper(implode('', array_map(function ($word) {
                                     <th>Tournament</th>
                                     <th>Dates</th>
                                     <th class="center">Players</th>
-                                    <th>T_Software fee</th>
+                                    <th>Subscription</th>
                                 </tr>
                             </thead>
 
@@ -259,7 +276,7 @@ $initials = strtoupper(implode('', array_map(function ($word) {
                                         <td class="center"><?= (int)$tournament['players'] ?></td>
                                         <td>
                                             <?php if ($tournament['fee_status'] === 'paid'): ?>
-                                                <span class="role role-paid">Paid</span>
+                                                <span class="role role-paid"><?= $tournament['fee_plan'] === 'annual' ? 'Annual plan' : 'Paid' ?></span>
                                             <?php elseif ($tournament['fee_status'] === 'unpaid'): ?>
                                                 <span class="role role-unpaid">Unpaid</span>
                                                 <small><?= htmlspecialchars(formatPlatformFee($tournament['fee_amount'], $tournament['fee_currency'])) ?></small>

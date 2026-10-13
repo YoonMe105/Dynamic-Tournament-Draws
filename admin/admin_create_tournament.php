@@ -623,15 +623,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 /*
                 |--------------------------------------------------------------------------
-                | T_Software fee (Tournament Organizers only)
+                | T_Software subscription (Tournament Organizers only)
                 |--------------------------------------------------------------------------
-                | Registration stays closed until it's paid.
+                | Covered straight away by a running annual plan; otherwise
+                | registration stays closed until they pay (per tournament or annual).
                 */
 
-                $needsPlatformFee = !isPlatformAdmin();
+                $needsPlatformFee = false;
 
-                if ($needsPlatformFee && !createTournamentPlatformFee($conn, $tournamentID, $creatorID)) {
-                    throw new Exception('the platform fee could not be saved');
+                if (!isPlatformAdmin()) {
+
+                    $subscription = createTournamentPlatformFee($conn, $tournamentID, $creatorID);
+
+                    if ($subscription === false) {
+                        throw new Exception('the subscription payment could not be saved');
+                    }
+
+                    $needsPlatformFee = $subscription === 'unpaid';
                 }
 
 

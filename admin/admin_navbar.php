@@ -84,7 +84,11 @@
 
                 </li>
 
-                <li><a href="admin_tournament_fees.php" class="<?= $current_page == 'admin_tournament_fees.php' ? 'active' : '' ?>">Tournament Fees</a></li>
+                <li><a href="admin_subscriptions.php" class="<?= $current_page == 'admin_subscriptions.php' ? 'active' : '' ?>">Subscriptions</a></li>
+
+            <?php else: ?>
+
+                <li><a href="admin_my_subscription.php" class="<?= in_array($current_page, ['admin_my_subscription.php', 'admin_platform_payment.php'], true) ? 'active' : '' ?>">My Subscription</a></li>
 
             <?php endif; ?>
             <li class="menu-divider"><a href="admin_my_profile.php" class="<?= $current_page == 'admin_my_profile.php' ? 'active' : '' ?>">My Profile</a></li>

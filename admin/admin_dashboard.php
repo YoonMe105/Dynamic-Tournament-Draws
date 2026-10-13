@@ -90,14 +90,14 @@ $stats = [
 | Tournament Registrations: the newest tournaments created on the platform
 |--------------------------------------------------------------------------
 | Newest first (tournament IDs go up as tournaments are created), with who
-| created it and, for Tournament Organizers, whether the T_Software fee is paid.
+| created it and, for Tournament Organizers, whether their subscription covers it.
 */
 
 $newTournaments = fetchAll($conn, "
     SELECT t.tournamentID, t.tournament_name, t.tournament_type, t.tournament_country,
            t.tournament_startdate, t.tournament_enddate, t.creatorID,
            a.admin_name AS creator_name, a.admin_role AS creator_role,
-           pp.status AS fee_status, pp.amount AS fee_amount, pp.currency AS fee_currency,
+           pp.status AS fee_status, pp.plan AS fee_plan, pp.amount AS fee_amount, pp.currency AS fee_currency,
            (SELECT COUNT(*) FROM tournament_register tr WHERE tr.tournamentID = t.tournamentID) AS players
     FROM tournament t
     LEFT JOIN admins a ON a.adminID = t.creatorID COLLATE utf8mb4_general_ci
@@ -301,7 +301,7 @@ $adminName = $_SESSION['admin_name'] ?? 'Admin';
                                     <th>Tournament</th>
                                     <th>Created by</th>
                                     <th>Dates</th>
-                                    <th>T_Software fee</th>
+                                    <th>Subscription</th>
                                     <th class="center">Players</th>
                                 </tr>
                             </thead>
@@ -331,7 +331,7 @@ $adminName = $_SESSION['admin_name'] ?? 'Admin';
 
                                         <td>
                                             <?php if ($row['fee_status'] === 'paid'): ?>
-                                                <span class="status-pill good">PAID</span>
+                                                <span class="status-pill good"><?= $row['fee_plan'] === 'annual' ? 'ANNUAL' : 'PAID' ?></span>
                                             <?php elseif ($row['fee_status'] === 'unpaid'): ?>
                                                 <span class="status-pill wait">UNPAID</span>
                                             <?php else: ?>

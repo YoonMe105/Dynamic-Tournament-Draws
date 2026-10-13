@@ -89,20 +89,15 @@ $admins = $conn->query("
 <head>
 
     <meta charset="UTF-8">
-
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
     <title>Admins</title>
-
     <link href="./assets/style.css" rel="stylesheet" type="text/css">
     <link href="./assets/admins.css?v=<?= filemtime(__DIR__ . '/assets/admins.css') ?>" rel="stylesheet" type="text/css">
 
 </head>
 
 <body>
-
     <?php require_once 'admin_navbar.php'; ?>
-
 
     <main class="admins-page">
 

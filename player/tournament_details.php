@@ -302,7 +302,7 @@ $myFee = playerFee($tournament, getPlayer($conn, $playerID) ?? []);
                 <?php elseif (registrationOpensSoon($tournament)): ?>
 
 
-                    <!-- NOT OPEN YET (organizer's T_Software fee unpaid) -->
+                    <!-- NOT OPEN YET (organizer's T_Software subscription unpaid) -->
 
                     <h2>Registration</h2>
 

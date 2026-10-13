@@ -1,0 +1,147 @@
+/* =========================================
+   SUBSCRIPTIONS (organizer + Platform Admin)
+========================================= */
+
+/* ---------- Organizer: current status ---------- */
+
+.sub-status {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.sub-status h2 {
+    margin: 0 0 4px;
+}
+
+.sub-status p {
+    margin: 0;
+    color: #4a5068;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.sub-status-icon {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: #f0f1f4;
+    color: #6b7280;
+    font-size: 22px;
+}
+
+.sub-status.is-active {
+    border-color: #c5e6cf;
+    background: #f5fbf7;
+}
+
+.sub-status.is-active .sub-status-icon {
+    background: #e3f4e8;
+    color: #1f7a3f;
+}
+
+
+/* ---------- Organizer: the two plans ---------- */
+
+.plan-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.plan-card {
+    display: flex;
+    flex-direction: column;
+}
+
+.plan-card.featured {
+    border: 2px solid #993D86;
+}
+
+.plan-label {
+    margin: 0 0 6px;
+    color: #993D86;
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+.plan-amount {
+    margin: 0 0 14px;
+    color: #20283a;
+    font-size: 28px;
+    font-weight: 800;
+}
+
+.plan-amount small {
+    color: #6b7280;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.plan-points {
+    flex: 1;
+    margin: 0 0 16px;
+    padding: 0;
+    list-style: none;
+    color: #4a5068;
+    font-size: 14px;
+}
+
+.plan-points li {
+    padding: 4px 0;
+}
+
+.plan-points i {
+    width: 20px;
+    color: #1f7a3f;
+}
+
+.plan-btn {
+    width: 100%;
+    justify-content: center;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.plan-hint {
+    margin: 8px 0 0;
+    color: #6b7280;
+    font-size: 13px;
+    text-align: center;
+}
+
+.sub-section {
+    margin-bottom: 20px;
+}
+
+
+/* ---------- Platform Admin: columns ---------- */
+
+.sub-main,
+.sub-side {
+    display: grid;
+    gap: 20px;
+}
+
+.form-group > label small {
+    margin-left: 4px;
+    color: #6b7280;
+    font-weight: 400;
+}
+
+@media (max-width: 800px) {
+
+    .plan-grid {
+        grid-template-columns: 1fr;
+    }
+
+}

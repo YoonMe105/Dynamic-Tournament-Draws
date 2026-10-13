@@ -392,7 +392,8 @@ $problemCount = $report ? $counts['wrong'] + $counts['missing'] + $counts['not_f
     <title>Check Rankings - <?= htmlspecialchars($tournament['tournament_name']) ?></title>
 
     <link rel="stylesheet" href="assets/style.css">
-    <link rel="stylesheet" href="assets/admin_seeding.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css">
+    <link rel="stylesheet" href="assets/admin_seeding.css?v=<?= filemtime(__DIR__ . '/assets/admin_seeding.css') ?>">
     <link rel="stylesheet" href="assets/ranking_check.css?v=<?= filemtime(__DIR__ . '/assets/ranking_check.css') ?>">
 
 </head>
@@ -403,6 +404,11 @@ $problemCount = $report ? $counts['wrong'] + $counts['missing'] + $counts['not_f
 
 
     <main class="container">
+
+        <a href="admin_seeding.php?id=<?= $tournamentID ?>" class="back-link">
+            <i class="fa-solid fa-arrow-left"></i>
+            Back to Seeding
+        </a>
 
 
         <!-- ==========================================================
@@ -415,8 +421,6 @@ $problemCount = $report ? $counts['wrong'] + $counts['missing'] + $counts['not_f
                 <h1>Check Rankings</h1>
                 <p><?= htmlspecialchars($tournament['tournament_name']) ?> &middot; <?= count($registrations) ?> registered players</p>
             </div>
-
-            <a href="admin_seeding.php?id=<?= $tournamentID ?>" class="back-btn">Back to Seeding</a>
 
         </div>
 
@@ -432,19 +436,7 @@ $problemCount = $report ? $counts['wrong'] + $counts['missing'] + $counts['not_f
                 <div class="upload-text">
                     <strong>Upload the official ranking file</strong>
                     <span>
-                        PDF, Excel (.xlsx / .xls) or CSV. An Asian Junior Ranking list (e.g. BU15) checks the
-                        players' <b>AJSS ranking</b>; the SRAM National Junior Ranking checks their <b>national ranking</b>.
-                        Excel/CSV files need a header row with at least <b>Rank</b> and <b>Name</b> columns
-                        (an <b>AJSS Member ID</b> column and Date of Birth make the matching more reliable).
-                        Players are matched by their <b>AJSS membership ID</b> first (the ASF Membership No on their profile),
-                        then by name and date of birth.
-                        For Excel/CSV, type the <b>column to check</b> exactly as its heading in the file
-                        (e.g. <i>National Ranking</i>, <i>AJSS Ranking</i>, <i>Rank</i>). A column named AJSS/Asian is compared
-                        with the saved AJSS ranking, World/PSA with the World ranking, otherwise the National ranking.
-                        PDFs are read automatically.
-                        The report compares the rankings saved for this tournament (the ones seeding uses).
-                        Nothing changes until you fix a ranking in the report &ndash; and that only updates this
-                        tournament's saved rankings, never the player's profile.
+                        PDF, Excel (.xlsx / .xls) or CSV.
                     </span>
                 </div>
 

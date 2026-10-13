@@ -92,6 +92,20 @@ $seedingRuleText = implode(', then ', array_map(function ($column) use ($ranking
 }, $seedingOrder));
 
 /*
+| Tie-breakers: players with the same (or no) ranking in the rule above are
+| ordered by the rankings the rule doesn't use (National, AJSS, World), so a
+| ranked player is never seeded below a player with no ranking at all.
+*/
+
+$tieBreakers = array_values(array_diff(['national_ranking', 'ajss_ranking', 'world_ranking'], $seedingOrder));
+
+$seedingTieBreakText = implode(', then ', array_map(function ($column) use ($rankingColumns) {
+    return $rankingColumns[$column];
+}, $tieBreakers));
+
+$seedingOrder = array_merge($seedingOrder, $tieBreakers);
+
+/*
 | ORDER BY for the rule: the rankings saved when each player registered
 | (tournament_rankings), lowest = best, players without that ranking last.
 */
@@ -427,8 +441,10 @@ $playersResult = $playerStmt->get_result();
 
     <link rel="stylesheet" href="assets/style.css">
 
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css">
+
     <link rel="stylesheet" href="assets/each_tournament.css">
-    <link rel="stylesheet" href="assets/admin_seeding.css">
+    <link rel="stylesheet" href="assets/admin_seeding.css?v=<?= filemtime(__DIR__ . '/assets/admin_seeding.css') ?>">
 
 </head>
 
@@ -438,6 +454,11 @@ $playersResult = $playerStmt->get_result();
 
 
     <main class="container">
+
+        <a href="admin_each_tournament.php?id=<?= $tournamentID ?>" class="back-link">
+            <i class="fa-solid fa-arrow-left"></i>
+            Back to Tournament
+        </a>
 
         <!-- ==========================================================
             PAGE HEADER
@@ -458,6 +479,11 @@ $playersResult = $playerStmt->get_result();
                 <p class="seeding-rule">
                     Automatic seeding uses:
                     <strong><?= htmlspecialchars($seedingRuleText) ?></strong>
+                    <?php if ($seedingTieBreakText !== ''): ?>
+                        <span class="seeding-rule-note">
+                            (ties and unranked players: <?= htmlspecialchars($seedingTieBreakText) ?>)
+                        </span>
+                    <?php endif; ?>
                     <?php if (empty($tournament['tournament_country'])): ?>
                         <span class="seeding-rule-note">
                             (no country set for this tournament &ndash; set it on the tournament page to apply the country rules)
@@ -469,14 +495,6 @@ $playersResult = $playerStmt->get_result();
                 </p>
 
             </div>
-
-
-            <a
-                href="admin_each_tournament.php?id=<?= $tournamentID ?>"
-                class="back-btn"
-            >
-                Back
-            </a>
 
         </div>
 
@@ -546,6 +564,16 @@ $playersResult = $playerStmt->get_result();
                 target="_blank"
             >
                 Download Report
+            </a>
+
+
+            <!-- Draw for the category chosen below (link set by updateReportLink) -->
+            <a
+                href="admin_draw.php?id=<?= $tournamentID ?>&category=<?= urlencode($firstCategory) ?>"
+                class="btn"
+                id="drawBtn"
+            >
+                Draw
             </a>
 
 
@@ -964,6 +992,16 @@ function updateReportLink() {
         + '?tournamentID=<?= $tournamentID ?>'
         + '&category='
         + encodeURIComponent(selectedCategory);
+
+    const drawButton = document.getElementById('drawBtn');
+
+    if (drawButton) {
+        drawButton.href =
+            'admin_draw.php'
+            + '?id=<?= $tournamentID ?>'
+            + '&category='
+            + encodeURIComponent(selectedCategory);
+    }
 }
 
 

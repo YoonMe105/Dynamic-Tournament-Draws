@@ -1,0 +1,146 @@
+/* =========================================
+   REGISTER A PLAYER (organizer / Platform Admin)
+========================================= */
+
+.register-form {
+    display: grid;
+    gap: 20px;
+    max-width: 760px;
+}
+
+.step {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: #993D86;
+    color: #ffffff;
+    font-size: 14px;
+}
+
+.mode-tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+.mode-tabs .choice {
+    margin: 0;
+}
+
+#existingPlayer[hidden],
+#newPlayer[hidden],
+.form-group[hidden],
+.player-option[hidden] {
+    display: none;
+}
+
+.search-box {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    padding: 0 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 7px;
+    color: #6b7280;
+}
+
+.search-box input {
+    flex: 1;
+    padding: 10px 0;
+    border: none;
+    outline: none;
+    font-family: inherit;
+    font-size: 14px;
+}
+
+.player-pick {
+    max-height: 320px;
+    overflow-y: auto;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+}
+
+.player-option {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    padding: 10px 12px;
+    border-bottom: 1px solid #f0f1f5;
+    cursor: pointer;
+}
+
+.player-option:last-of-type {
+    border-bottom: none;
+}
+
+.player-option:hover {
+    background: #fafafb;
+}
+
+.player-option:has(input:checked) {
+    background: #fbf5fa;
+}
+
+.player-option input {
+    accent-color: #993D86;
+}
+
+.player-text strong {
+    display: block;
+    color: #20283a;
+    font-size: 14px;
+}
+
+.player-text small {
+    color: #6b7280;
+    font-size: 12px;
+}
+
+.no-match {
+    margin: 0;
+    padding: 12px;
+}
+
+.form-row.three {
+    grid-template-columns: repeat(3, 1fr);
+}
+
+.add-form input[type="date"] {
+    width: 100%;
+    padding: 9px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 7px;
+    font-family: inherit;
+    font-size: 14px;
+}
+
+.field-hint {
+    display: block;
+    margin-top: 6px;
+    color: #6b7280;
+    font-size: 12px;
+}
+
+.closed-note {
+    margin: 0;
+}
+
+.closed-note a {
+    color: #993D86;
+    font-weight: 700;
+}
+
+@media (max-width: 700px) {
+
+    .mode-tabs,
+    .form-row,
+    .form-row.three {
+        grid-template-columns: 1fr;
+    }
+
+}

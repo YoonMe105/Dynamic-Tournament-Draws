@@ -4,12 +4,13 @@
 |--------------------------------------------------------------------------
 | Draw Helpers (knockout draw)
 |--------------------------------------------------------------------------
-| Every player with a seed number is placed as a seed, squash / WSF style:
+| Standard seeded draw: every player with a seed number goes to that seed's
+| fixed place in the bracket, so the best seeds meet the weakest opponents:
 |   - seed 1 at the top, seed 2 at the bottom
-|   - seeds 3-4 drawn at random into the two remaining quarter slots
-|   - seeds 5-8 drawn at random into the eighth slots, and so on
+|   - quarter-finals 1 v 8, 4 v 5, 3 v 6, 2 v 7 (each pair adds up to 9)
+|   - round 1 of a 16 draw: 1 v 16, 8 v 9, 5 v 12, 4 v 13 ... (adds up to 17)
 | Byes go opposite seed 1, seed 2, ... Players without a seed number are
-| drawn at random into the slots that are left.
+| drawn at random into the places that are left.
 */
 
 
@@ -95,107 +96,36 @@ function buildDrawPositions(array $seeded, array $unseeded)
 
     $total = count($seeded) + count($unseeded);
     $size = drawSize($total);
-    $half = intdiv($size, 2);
 
+    // rank => position: rank r meets rank (size + 1 - r) in round 1
     $rankPosition = seedRankPositions($size);
     $slots = array_fill(1, $size, null);
-    $taken = [];
 
 
-    // Top half of the ranks: 1 and 2 fixed, then each group (3-4, 5-8 ...)
-    // shuffled within its own slots. Every rank gets a slot, seeded or not,
-    // so the byes below know where each rank sits.
-    $rankSlot = [];
-    $groupStart = 1;
-
-    while ($groupStart <= $half) {
-
-        // Groups: 1, 2, 3-4, 5-8, 9-16 ...
-        $groupEnd = $groupStart <= 2 ? $groupStart : ($groupStart - 1) * 2;
-
-        $groupPositions = [];
-
-        for ($rank = $groupStart; $rank <= $groupEnd; $rank++) {
-            $groupPositions[] = $rankPosition[$rank];
-        }
-
-        shuffle($groupPositions);
-
-        for ($rank = $groupStart; $rank <= $groupEnd; $rank++) {
-            $rankSlot[$rank] = array_shift($groupPositions);
-        }
-
-        $groupStart = $groupEnd + 1;
-    }
-
+    // Seeds: rank 1 = first seed, rank 2 = second ... each in its fixed place
     foreach ($seeded as $index => $player) {
 
         $rank = $index + 1;
 
-        if ($rank > $half) {
-            break;
-        }
-
         $player['draw_seed'] = $player['seed_number'] ?? $rank;
 
-        $slots[$rankSlot[$rank]] = $player;
-        $taken[$rankSlot[$rank]] = true;
+        $slots[$rankPosition[$rank]] = $player;
     }
 
 
-    // Byes: opposite rank 1, rank 2, ... (their opponents are all in the bottom-half ranks)
-    $byes = $size - $total;
-
-    for ($rank = 1; $rank <= $byes; $rank++) {
-
-        $position = $rankSlot[$rank];
-        $opponent = $position % 2 === 1 ? $position + 1 : $position - 1;
-
-        $taken[$opponent] = true;
-    }
-
-
-    // Remaining seeds (bottom half of the ranks): drawn at random into the
-    // free bottom-half slots
-    $bottomSlots = [];
-
-    for ($rank = $half + 1; $rank <= $size; $rank++) {
-        if (!isset($taken[$rankPosition[$rank]])) {
-            $bottomSlots[] = $rankPosition[$rank];
-        }
-    }
-
-    shuffle($bottomSlots);
-
-    foreach (array_slice($seeded, $half) as $player) {
-
-        $position = array_shift($bottomSlots);
-
-        $player['draw_seed'] = $player['seed_number'];
-
-        $slots[$position] = $player;
-        $taken[$position] = true;
-    }
-
-
-    // Players without a seed number: random order into the free slots
+    // Unseeded players: drawn at random into the places of the next ranks.
+    // The places of ranks after the last player stay empty - those are the
+    // byes, and they sit opposite rank 1, rank 2, ...
     shuffle($unseeded);
 
-    for ($position = 1; $position <= $size; $position++) {
+    $rank = count($seeded) + 1;
 
-        if (isset($taken[$position])) {
-            continue;
-        }
-
-        $player = array_shift($unseeded);
-
-        if ($player === null) {
-            continue;   // a bye
-        }
+    foreach ($unseeded as $player) {
 
         $player['draw_seed'] = null;
 
-        $slots[$position] = $player;
+        $slots[$rankPosition[$rank]] = $player;
+        $rank++;
     }
 
     return $slots;
@@ -300,6 +230,12 @@ function generateDraw($conn, $tournamentID, $category)
 
     if ($total < 2) {
         throw new Exception('At least 2 endorsed players are needed to make a draw.');
+    }
+
+    // Every endorsed player needs a seed number before the draw is made
+    if (count($unseeded) > 0) {
+        throw new Exception(count($unseeded) . ' of ' . $total . ' players in ' . $category
+            . ' have no seed number yet. Run Automatic Seeding (or set the seeds in Manage Seeding) first.');
     }
 
     $slots = buildDrawPositions($seeded, $unseeded);
