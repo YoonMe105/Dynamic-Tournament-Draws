@@ -1,14 +1,5 @@
 <?php
 
-/*
-|--------------------------------------------------------------------------
-| tournament_rankings sync
-|--------------------------------------------------------------------------
-| tournament_rankings keeps one row per registration: the player's rankings
-| as they were when they registered, plus the seed. The rankings are never
-| changed here - only the seed and the category follow tournament_register
-| (after seeding, or when the admin moves a player to another category).
-*/
 
 function syncTournamentRankings($conn, $tournamentID)
 {
