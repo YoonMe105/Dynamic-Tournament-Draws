@@ -561,7 +561,6 @@ $playersResult = $playerStmt->get_result();
                 href="#"
                 class="btn"
                 id="downloadReportBtn"
-                target="_blank"
             >
                 Download Report
             </a>

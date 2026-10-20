@@ -170,7 +170,8 @@ $drawOutOfDate = $selectedInfo && $selectedInfo['has_draw'] && $drawPlayerCount 
     </title>
 
     <link rel="stylesheet" href="assets/style.css">
-    <link rel="stylesheet" href="assets/admin_seeding.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css">
+    <link rel="stylesheet" href="assets/admin_seeding.css?v=<?= filemtime(__DIR__ . '/assets/admin_seeding.css') ?>">
     <link rel="stylesheet" href="assets/draw.css?v=<?= filemtime(__DIR__ . '/assets/draw.css') ?>">
 
 </head>
@@ -181,6 +182,11 @@ $drawOutOfDate = $selectedInfo && $selectedInfo['has_draw'] && $drawPlayerCount 
 
 
     <main class="container">
+
+        <a href="admin_each_tournament.php?id=<?= $tournamentID ?>" class="back-link">
+            <i class="fa-solid fa-arrow-left"></i>
+            Back to Tournament
+        </a>
 
         <!-- ==========================================================
             PAGE HEADER
@@ -195,10 +201,6 @@ $drawOutOfDate = $selectedInfo && $selectedInfo['has_draw'] && $drawPlayerCount 
                 <p><?= htmlspecialchars($tournament['tournament_name']) ?></p>
 
             </div>
-
-            <a href="admin_each_tournament.php?id=<?= $tournamentID ?>" class="back-btn">
-                Back
-            </a>
 
         </div>
 

@@ -3,7 +3,7 @@
 require_once '../db.php';
 require_once 'admin_auth.php';
 require_once '../platform_fee.php';
-require_once '../registration_functions.php';
+require_once 'admin_registration_helpers.php';
 
 
 /*
@@ -37,11 +37,7 @@ $subscriptionUnpaid = platformFeeUnpaid($conn, $tournamentID);
 $cutoff = $tournament['tournament_age_cutoff'];
 $hasCutoff = ageOnCutoff('2000-01-01', $cutoff) !== null;
 
-$nationalities = [
-    'MALAYSIAN', 'SINGAPOREAN', 'INDONESIAN', 'THAI', 'FILIPINO', 'VIETNAMESE', 'BRUNEIAN', 'CAMBODIAN',
-    'MYANMAR', 'CHINESE', 'JAPANESE', 'KOREAN', 'INDIAN', 'PAKISTANI', 'BANGLADESHI', 'SRI LANKAN',
-    'NEPALESE', 'AUSTRALIAN', 'NEW ZEALANDER', 'BRITISH', 'AMERICAN', 'CANADIAN', 'FRENCH', 'GERMAN',
-];
+$nationalities = registrationNationalities();
 
 
 // Active players not registered in this tournament yet
@@ -56,38 +52,6 @@ $stmt->bind_param("i", $tournamentID);
 $stmt->execute();
 $availablePlayers = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $stmt->close();
-
-
-/*
-| Why a category can't be chosen for this gender / age ('' = it can)
-*/
-function categoryProblem($code, $gender, $age, $hasCutoff)
-{
-    $categoryGender = categoryGender($code);
-    $maxAge = categoryMaxAge($code);
-
-    if ($gender !== null && $categoryGender !== null && $categoryGender !== $gender) {
-        return $code . ' is for ' . ($categoryGender === 'male' ? 'boys / men' : 'girls / women') . ' only.';
-    }
-
-    if ($maxAge !== null && $hasCutoff && $age === null) {
-        return 'The player needs a date of birth for ' . $code . '.';
-    }
-
-    if ($maxAge !== null && $hasCutoff && $age >= $maxAge) {
-        return 'The player is ' . $age . ' on the age cut-off date, too old for ' . $code . ' (must be under ' . $maxAge . ').';
-    }
-
-    return '';
-}
-
-
-function normalGender($value)
-{
-    $value = strtolower(trim((string) $value));
-
-    return in_array($value, ['male', 'female'], true) ? $value : null;
-}
 
 
 $form = [
@@ -214,75 +178,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             if ($isNew) {
 
-                $row = $conn->query("
-                    SELECT MAX(CAST(SUBSTRING(playerID, 2) AS UNSIGNED)) AS last_number
-                    FROM players WHERE playerID REGEXP '^P[0-9]+$'
-                ")->fetch_assoc();
-
-                $newPlayerID = 'P' . str_pad((string) ((int) $row['last_number'] + 1), 4, '0', STR_PAD_LEFT);
-                $fullName = $form['first_name'] . ' ' . $form['last_name'];
-                $email = $form['email'] !== '' ? $form['email'] : null;
-                $national = $form['national_ranking'] !== '' ? $form['national_ranking'] : null;
-                $status = 'offline';
-
                 // First password = their player ID; they can change it in My Profile
-                $stmt = $conn->prepare("
-                    INSERT INTO players (
-                        playerID, player_password, player_full_name, player_first_name, player_last_name,
-                        player_email, player_dob, player_gender, player_nationality, player_contact,
-                        national_ranking, ajss_ranking, world_ranking, player_passport, player_status, player_active
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', ?, 'active')
-                ");
-                $stmt->bind_param(
-                    "ssssssssssssss",
-                    $newPlayerID, $newPlayerID, $fullName, $form['first_name'], $form['last_name'],
-                    $email, $form['dob'], $form['gender'], $form['nationality'], $form['contact'],
-                    $national, $form['ajss_ranking'], $form['world_ranking'], $status
-                );
-
-                if (!$stmt->execute()) {
-                    throw new Exception('the player could not be created');
-                }
-
-                $stmt->close();
-
-                $registerPlayerID = $newPlayerID;
+                $registerPlayerID = createPlayer($conn, [
+                    'first_name' => $form['first_name'],
+                    'last_name' => $form['last_name'],
+                    'gender' => $form['gender'],
+                    'dob' => $form['dob'],
+                    'nationality' => $form['nationality'],
+                    'email' => $form['email'],
+                    'contact' => $form['contact'],
+                    'national_ranking' => $form['national_ranking'],
+                    'ajss_ranking' => $form['ajss_ranking'],
+                    'world_ranking' => $form['world_ranking'],
+                ]);
 
             } else {
 
                 $registerPlayerID = $player['playerID'];
             }
 
-            $paid = $form['payment_status'] === 'PAID';
-            $endorsed = $form['endorsement'] === 'ENDORSED';
-            $amountPaid = $paid && $form['amount_paid'] !== '' ? $form['amount_paid'] : null;
-            $paymentDate = $paid ? date('Y-m-d H:i:s') : null;
-            $endorsementDate = $endorsed ? date('Y-m-d') : null;
             $remark = 'Registered by ' . $_SESSION['userid'] . ($form['admin_remark'] !== '' ? ': ' . $form['admin_remark'] : '');
 
-            $stmt = $conn->prepare("
-                INSERT INTO tournament_register (
-                    category_registered, payment_status, amount_paid, payment_date,
-                    endorsement, endorsement_date, admin_remark, tournamentID, playerID
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ");
-            $stmt->bind_param(
-                "sssssssis",
-                $form['category'], $form['payment_status'], $amountPaid, $paymentDate,
-                $form['endorsement'], $endorsementDate, $remark, $tournamentID, $registerPlayerID
+            insertRegistration(
+                $conn, $tournamentID, $registerPlayerID, $form['category'],
+                $form['payment_status'], $form['amount_paid'], $form['endorsement'], $remark
             );
-
-            if (!$stmt->execute()) {
-                throw new Exception('the registration could not be saved');
-            }
-
-            $registrationID = $stmt->insert_id;
-            $stmt->close();
-
-            // Rankings at registration time (used for seeding)
-            if (!saveRegistrationRankings($conn, $registrationID)) {
-                throw new Exception('the rankings could not be saved');
-            }
 
             $conn->commit();
 
@@ -348,9 +268,15 @@ if (isset($_GET['registered'])) {
 
         <a href="admin_each_tournament.php?id=<?= $tournamentID ?>" class="back-link">&larr; Back to Tournament</a>
 
-        <div class="page-title">
-            <h1>Register a Player</h1>
-            <p><?= htmlspecialchars($tournament['tournament_name']) ?></p>
+        <div class="page-title page-title-row">
+            <div>
+                <h1>Register a Player</h1>
+                <p><?= htmlspecialchars($tournament['tournament_name']) ?></p>
+            </div>
+            <a class="excel-link" href="admin_register_players_excel.php?id=<?= $tournamentID ?>">
+                <i class="fa-solid fa-file-excel"></i>
+                Register many from Excel
+            </a>
         </div>
 
 

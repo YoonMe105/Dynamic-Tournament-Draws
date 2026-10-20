@@ -145,7 +145,8 @@ def _sheets(path: Path):
     suffix = path.suffix.lower()
 
     if suffix == ".csv":
-        with open(path, newline="", encoding="utf-8-sig", errors="replace") as f:
+        with open(path, newline="", encoding="utf-8-sig", errors="r" \
+        "eplace") as f:
             yield path.stem, list(csv.reader(f))
 
     elif suffix == ".xls":

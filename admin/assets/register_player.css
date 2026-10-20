@@ -144,3 +144,143 @@
     }
 
 }
+
+
+/* ---------- Register many from Excel ---------- */
+
+.excel-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 16px;
+    border: 1.5px solid #1f7a3f;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #1f7a3f;
+    font-size: 14px;
+    font-weight: 700;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.excel-link:hover {
+    background: #1f7a3f;
+    color: #ffffff;
+}
+
+.excel-upload {
+    max-width: 760px;
+}
+
+.excel-upload .small-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+}
+
+.second-step {
+    margin-top: 26px !important;
+}
+
+.excel-form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+}
+
+.excel-form input[type="file"] {
+    padding: 8px;
+    border: 1px solid #d1d5db;
+    border-radius: 7px;
+    background: #fafafa;
+    font-size: 13px;
+}
+
+.excel-form .add-btn {
+    width: auto;
+    padding: 0 22px;
+}
+
+.excel-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.row-pill {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.row-pill.existing {
+    background: #e3f4e8;
+    color: #1f7a3f;
+}
+
+.row-pill.new {
+    background: #e6eefc;
+    color: #2b55b3;
+}
+
+.row-pill.error {
+    background: #fdecec;
+    color: #b42318;
+}
+
+.row-error td {
+    background: #fffafa;
+}
+
+.excel-table {
+    max-height: 520px;
+    overflow-y: auto;
+}
+
+.excel-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: #ffffff;
+}
+
+.excel-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    margin-top: 16px;
+}
+
+.excel-actions .add-btn {
+    width: auto;
+    padding: 0 22px;
+}
+
+.excel-actions .small-btn {
+    text-decoration: none;
+}
+
+.where-cell {
+    white-space: nowrap;
+    color: #6b7280;
+}
+
+.row-pill.skipped {
+    background: #f0f1f4;
+    color: #6b7280;
+}
+
+.row-skipped td {
+    color: #8a8fa3;
+}
+
+.no-new {
+    margin: 0;
+}
