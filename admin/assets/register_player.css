@@ -284,3 +284,187 @@
 .no-new {
     margin: 0;
 }
+
+/* Register a Player: the page sits in one centred column */
+.register-wrap {
+    max-width: 760px;
+    margin: 0 auto;
+}
+
+.register-wrap .register-form,
+.register-wrap .form-page {
+    max-width: none;
+}
+
+.row-pill.update {
+    background: #fff4dc;
+    color: #9a6818;
+}
+
+
+/* ---------- Existing players: file details differ from the profile ---------- */
+
+.profile-choice {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px 20px;
+    margin-bottom: 14px;
+    padding: 12px 14px;
+    border: 1px solid #f3d9a4;
+    border-radius: 10px;
+    background: #fff8e8;
+    color: #6b4a10;
+    font-size: 13px;
+}
+
+.profile-choice p {
+    margin: 0;
+    flex: 1 1 420px;
+    line-height: 1.5;
+}
+
+.profile-choice i {
+    color: #9a6818;
+}
+
+.overwrite-all {
+    margin: 0;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.profile-diff {
+    margin-top: 8px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: #fff8e8;
+    font-size: 12px;
+}
+
+.profile-diff ul {
+    margin: 0 0 6px;
+    padding: 0;
+    list-style: none;
+}
+
+.profile-diff li {
+    padding: 2px 0;
+    color: #4a5068;
+}
+
+.profile-diff li span {
+    color: #6b7280;
+}
+
+.profile-diff li i {
+    margin: 0 4px;
+    color: #9a6818;
+    font-size: 10px;
+}
+
+.profile-diff .check {
+    margin: 0;
+    font-size: 12px;
+    font-weight: 700;
+    color: #6b4a10;
+}
+
+.profile-note {
+    display: block;
+    margin-top: 4px;
+    color: #9a6818;
+}
+
+.profile-note.muted {
+    color: #8a8fa3;
+}
+
+
+/* ---------- Differences table (which player, what is different) ---------- */
+
+.differences {
+    margin-bottom: 18px;
+    padding: 14px;
+    border: 1px solid #f3d9a4;
+    border-radius: 10px;
+    background: #fff8e8;
+}
+
+.differences-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px 20px;
+    margin-bottom: 10px;
+    color: #6b4a10;
+    font-size: 13px;
+}
+
+.differences-head p {
+    flex: 1 1 420px;
+    margin: 0;
+    line-height: 1.5;
+}
+
+.differences-head i {
+    color: #9a6818;
+}
+
+.differences-table {
+    background: #ffffff;
+    border-radius: 8px;
+}
+
+.differences-table td {
+    vertical-align: top;
+}
+
+.differences-table tr.first-line td {
+    border-top: 2px solid #f3d9a4;
+}
+
+.diff-player strong {
+    display: block;
+}
+
+.diff-old {
+    color: #8a8fa3;
+    text-decoration: line-through;
+}
+
+.diff-new {
+    color: #20283a;
+    font-weight: 700;
+}
+
+.diff-auto {
+    display: inline-block;
+    padding: 3px 9px;
+    border-radius: 12px;
+    background: #e3f4e8;
+    color: #1f7a3f;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.diff-hint {
+    display: block;
+    margin-top: 4px;
+    color: #8a8fa3;
+    font-size: 12px;
+}
+
+.differences-table .check {
+    margin: 0;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.dob-note {
+    display: block;
+    margin-top: 4px;
+    color: #b42318;
+}

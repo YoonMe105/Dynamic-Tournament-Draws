@@ -521,3 +521,148 @@ function renderBracket($draw)
         </div>
     <?php
 }
+
+
+/*
+|--------------------------------------------------------------------------
+| Edit Draw (drag and drop on admin_draw.php)
+|--------------------------------------------------------------------------
+| The admin rearranges the first round; the same players stay in the draw,
+| only their places (and so their opponents) change. Later rounds are
+| cleared and byes go through again. Not allowed once a real match (two
+| players) has a result.
+*/
+
+// True when a match between two players already has a winner or a score
+function drawHasResults($draw)
+{
+    foreach ($draw as $matches) {
+        foreach ($matches as $match) {
+            if ($match['player1ID'] !== null && $match['player2ID'] !== null
+                && ($match['winnerID'] !== null || $match['player1_score'] !== null || $match['player2_score'] !== null)) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+
+/*
+| $positions: [place => playerID or '' for a bye], places 1..draw size,
+| top to bottom (place 1 and 2 = match 1, 3 and 4 = match 2 ...).
+*/
+function saveDrawPositions($conn, $tournamentID, $category, array $positions)
+{
+    $draw = loadDraw($conn, $tournamentID, $category);
+
+    if (!$draw) {
+        throw new Exception('There is no draw for ' . $category . ' to edit.');
+    }
+
+    if (drawHasResults($draw)) {
+        throw new Exception('Matches in ' . $category . ' already have results, so the draw can\'t be changed any more.');
+    }
+
+    // Players and seeds now in the draw
+    $seeds = [];
+
+    foreach ($draw[1] as $match) {
+        foreach ([1, 2] as $number) {
+            if ($match['player' . $number . 'ID'] !== null) {
+                $seeds[$match['player' . $number . 'ID']] = $match['player' . $number . '_seed'];
+            }
+        }
+    }
+
+    $size = count($draw[1]) * 2;
+
+    // Same places, same players - nothing added, removed or doubled
+    $placed = [];
+
+    for ($place = 1; $place <= $size; $place++) {
+
+        $playerID = trim((string) ($positions[$place] ?? ''));
+
+        if ($playerID === '') {
+            $placed[$place] = null;
+            continue;
+        }
+
+        if (!array_key_exists($playerID, $seeds) || in_array($playerID, $placed, true)) {
+            throw new Exception('The changed draw doesn\'t match the players in ' . $category . '. Please try again.');
+        }
+
+        $placed[$place] = $playerID;
+    }
+
+    if (count(array_filter($placed)) !== count($seeds)) {
+        throw new Exception('The changed draw doesn\'t match the players in ' . $category . '. Please try again.');
+    }
+
+    foreach ($draw[1] as $number => $match) {
+        if ($placed[$number * 2 - 1] === null && $placed[$number * 2] === null) {
+            throw new Exception('Match ' . $number . ' would have two byes - every match needs at least one player.');
+        }
+    }
+
+    $conn->begin_transaction();
+
+    try {
+
+        // Later rounds start empty again
+        $clear = $conn->prepare("
+            UPDATE matches
+            SET player1ID = NULL, player2ID = NULL, player1_seed = NULL, player2_seed = NULL,
+                player1_score = NULL, player2_score = NULL, winnerID = NULL, match_status = 'Pending'
+            WHERE tournamentID = ? AND category_registered = ? AND round_number > 1
+        ");
+        $clear->bind_param("is", $tournamentID, $category);
+        $clear->execute();
+        $clear->close();
+
+        $update = $conn->prepare("
+            UPDATE matches
+            SET player1ID = ?, player2ID = ?, player1_seed = ?, player2_seed = ?,
+                player1_score = NULL, player2_score = NULL, winnerID = ?, match_status = ?
+            WHERE matchID = ?
+        ");
+
+        foreach ($draw[1] as $number => $match) {
+
+            $player1 = $placed[$number * 2 - 1];
+            $player2 = $placed[$number * 2];
+            $seed1 = $player1 !== null ? $seeds[$player1] : null;
+            $seed2 = $player2 !== null ? $seeds[$player2] : null;
+
+            // Bye: the player goes through
+            $winner = ($player1 === null || $player2 === null) ? ($player1 ?? $player2) : null;
+            $status = $winner !== null ? 'Completed' : 'Pending';
+            $matchID = (int) $match['matchID'];
+
+            $update->bind_param("ssiissi", $player1, $player2, $seed1, $seed2, $winner, $status, $matchID);
+            $update->execute();
+
+            if ($winner !== null && $match['next_matchID'] !== null) {
+
+                $column = $match['next_match_position'] === 'player1' ? 'player1' : 'player2';
+                $winnerSeed = $seeds[$winner];
+                $nextID = (int) $match['next_matchID'];
+
+                $advance = $conn->prepare("UPDATE matches SET {$column}ID = ?, {$column}_seed = ? WHERE matchID = ?");
+                $advance->bind_param("sii", $winner, $winnerSeed, $nextID);
+                $advance->execute();
+                $advance->close();
+            }
+        }
+
+        $update->close();
+        $conn->commit();
+
+    } catch (Throwable $e) {
+
+        $conn->rollback();
+        throw $e;
+    }
+}

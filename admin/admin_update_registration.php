@@ -163,6 +163,17 @@ if ($stmt->execute()) {
 
     $stmt->close();
 
+    // A player who is no longer endorsed (pending) loses their seed number
+    $unseedStmt = $conn->prepare("
+        UPDATE tournament_register
+        SET seed_number = NULL
+        WHERE registrationID = ?
+        AND UPPER(TRIM(endorsement)) <> 'ENDORSED'
+    ");
+    $unseedStmt->bind_param("i", $registrationID);
+    $unseedStmt->execute();
+    $unseedStmt->close();
+
     // Category may have changed - keep tournament_rankings in step
     syncRegistrationRanking($conn, $registrationID);
 

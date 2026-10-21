@@ -251,11 +251,13 @@ if (
 
     if (isset($_POST['seed']) && is_array($_POST['seed'])) {
 
+        // Pending (not endorsed) players never get a seed number
         $updateStmt = $conn->prepare("
             UPDATE tournament_register
             SET seed_number = ?
             WHERE registrationID = ?
             AND tournamentID = ?
+            AND UPPER(TRIM(endorsement)) = 'ENDORSED'
         ");
 
         foreach ($_POST['seed'] as $registrationID => $seed) {
@@ -342,6 +344,7 @@ $categoryStmt = $conn->prepare("
     SELECT DISTINCT category_registered
     FROM tournament_register
     WHERE tournamentID = ?
+    AND UPPER(TRIM(endorsement)) = 'ENDORSED'
     AND category_registered IS NOT NULL
     AND TRIM(category_registered) != ''
     ORDER BY category_registered ASC
@@ -397,6 +400,7 @@ $playerStmt = $conn->prepare("
         tr.category_registered,
         tr.seed_number,
         tr.endorsement,
+        tr.payment_status,
         p.playerID,
         p.player_full_name,
         p.player_nationality,
@@ -409,6 +413,7 @@ $playerStmt = $conn->prepare("
     LEFT JOIN tournament_rankings r
         ON r.registrationID = tr.registrationID
     WHERE tr.tournamentID = ?
+    AND UPPER(TRIM(tr.endorsement)) = 'ENDORSED'
     ORDER BY
         tr.category_registered ASC,
         CASE
@@ -423,602 +428,173 @@ $playerStmt->execute();
 
 $playersResult = $playerStmt->get_result();
 
+// Players who haven't paid the fee yet, per category (shown as a notice)
+$players = $playersResult->fetch_all(MYSQLI_ASSOC);
+$unpaidByCategory = [];
+
+foreach ($players as $player) {
+    if (strtoupper(trim((string) $player['payment_status'])) !== 'PAID') {
+        $unpaidByCategory[$player['category_registered']][] = $player['player_full_name'];
+    }
+}
+
 ?>
 
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-
     <meta charset="UTF-8">
-
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <title>
-        Seeding -
-        <?= htmlspecialchars($tournament['tournament_name']) ?>
-    </title>
-
+    <title>Seeding - <?= htmlspecialchars($tournament['tournament_name']) ?></title>
     <link rel="stylesheet" href="assets/style.css">
-
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css">
-
     <link rel="stylesheet" href="assets/each_tournament.css">
     <link rel="stylesheet" href="assets/admin_seeding.css?v=<?= filemtime(__DIR__ . '/assets/admin_seeding.css') ?>">
-
 </head>
-
 <body>
-
     <?php require 'admin_navbar.php'; ?>
-
-
     <main class="container">
+        <a href="admin_each_tournament.php?id=<?= $tournamentID ?>" class="back-link"><i class="fa-solid fa-arrow-left"></i> Back to Tournament</a>
 
-        <a href="admin_each_tournament.php?id=<?= $tournamentID ?>" class="back-link">
-            <i class="fa-solid fa-arrow-left"></i>
-            Back to Tournament
-        </a>
-
-        <!-- ==========================================================
-            PAGE HEADER
-        =========================================================== -->
-
+        <!-- PAGE HEADER -->
         <div class="page-header">
-
             <div>
-
-                <h1>
-                    Tournament Seeding
-                </h1>
-
-                <p>
-                    <?= htmlspecialchars($tournament['tournament_name']) ?>
-                </p>
-
+                <h1>Tournament Seeding</h1>
+                <p><?= htmlspecialchars($tournament['tournament_name']) ?></p>
                 <p class="seeding-rule">
-                    Automatic seeding uses:
-                    <strong><?= htmlspecialchars($seedingRuleText) ?></strong>
-                    <?php if ($seedingTieBreakText !== ''): ?>
-                        <span class="seeding-rule-note">
-                            (ties and unranked players: <?= htmlspecialchars($seedingTieBreakText) ?>)
-                        </span>
-                    <?php endif; ?>
-                    <?php if (empty($tournament['tournament_country'])): ?>
-                        <span class="seeding-rule-note">
-                            (no country set for this tournament &ndash; set it on the tournament page to apply the country rules)
-                        </span>
-                    <?php endif; ?>
-                    <span class="seeding-rule-note">
-                        &ndash; using each player's rankings as saved when they registered for this tournament.
-                    </span>
+                    Automatic seeding uses: <strong><?= htmlspecialchars($seedingRuleText) ?></strong>
+                    <?php if ($seedingTieBreakText !== ''): ?><span class="seeding-rule-note">(ties and unranked players: <?= htmlspecialchars($seedingTieBreakText) ?>)</span><?php endif; ?>
+                    <?php if (empty($tournament['tournament_country'])): ?><span class="seeding-rule-note">(no country set for this tournament &ndash; set it on the tournament page to apply the country rules)</span><?php endif; ?>
+                    <span class="seeding-rule-note">&ndash; using each player's rankings as saved when they registered for this tournament.</span>
                 </p>
-
             </div>
-
         </div>
 
-
-        <!-- ==========================================================
-            SUCCESS MESSAGE
-        =========================================================== -->
-
-        <?php if (isset($_GET['message'])): ?>
-
-            <?php if ($_GET['message'] === 'automatic'): ?>
-
-                <div class="success-message">
-                    Automatic seeding has been generated successfully.
-                </div>
-
-            <?php elseif ($_GET['message'] === 'saved'): ?>
-
-                <div class="success-message">
-                    Seeding changes have been saved successfully.
-                </div>
-
-            <?php endif; ?>
-
+        <!-- SUCCESS MESSAGE -->
+        <?php if (($_GET['message'] ?? '') === 'automatic'): ?>
+            <div class="success-message">Automatic seeding has been generated successfully.</div>
+        <?php elseif (($_GET['message'] ?? '') === 'saved'): ?>
+            <div class="success-message">Seeding changes have been saved successfully.</div>
         <?php endif; ?>
 
-
-        <!-- ==========================================================
-            ACTION BUTTONS
-        =========================================================== -->
-
+        <!-- ACTION BUTTONS (Download Report / Draw links follow the chosen category, see updateReportLink) -->
         <div class="seeding-actions">
-
-            <form
-                method="POST"
-                action="admin_seeding.php?id=<?= $tournamentID ?>"
-                onsubmit="return confirmSeeding();"
-            >
-
-                <input
-                    type="hidden"
-                    name="action"
-                    value="automatic_seeding"
-                >
-
-                <input
-                    type="hidden"
-                    name="category"
-                    class="selected-category-input"
-                    value="<?= htmlspecialchars($firstCategory) ?>"
-                >
-
-                <button
-                    type="submit"
-                    class="btn"
-                >
-                    Automatic Seeding
-                </button>
-
+            <form method="POST" action="admin_seeding.php?id=<?= $tournamentID ?>" onsubmit="return confirmSeeding();">
+                <input type="hidden" name="action" value="automatic_seeding">
+                <input type="hidden" name="category" class="selected-category-input" value="<?= htmlspecialchars($firstCategory) ?>">
+                <button type="submit" class="btn">Automatic Seeding</button>
             </form>
-
-
-            <a
-                href="#"
-                class="btn"
-                id="downloadReportBtn"
-            >
-                Download Report
-            </a>
-
-
-            <!-- Draw for the category chosen below (link set by updateReportLink) -->
-            <a
-                href="admin_draw.php?id=<?= $tournamentID ?>&category=<?= urlencode($firstCategory) ?>"
-                class="btn"
-                id="drawBtn"
-            >
-                Draw
-            </a>
-
-
-            <a
-                href="admin_ranking_check.php?id=<?= $tournamentID ?>"
-                class="btn"
-            >
-                Check Rankings
-            </a>
-
+            <a href="#" class="btn" id="downloadReportBtn">Download Report</a>
+            <a href="admin_draw.php?id=<?= $tournamentID ?>&category=<?= urlencode($firstCategory) ?>" class="btn" id="drawBtn">Draw</a>
+            <a href="admin_ranking_check.php?id=<?= $tournamentID ?>" class="btn">Check Rankings</a>
         </div>
 
-
-        <!-- ==========================================================
-            CATEGORY SELECT
-        =========================================================== -->
-
+        <!-- CATEGORY SELECT -->
         <?php if (!empty($categories)): ?>
-
             <div class="category-filter">
-
-                <label for="categorySelect">
-                    Choose Category
-                </label>
-
-
-                <select
-                    id="categorySelect"
-                    onchange="filterCategory()"
-                >
-
+                <label for="categorySelect">Choose Category</label>
+                <select id="categorySelect" onchange="filterCategory()">
                     <?php foreach ($categories as $categoryName): ?>
-
-                        <option
-                            value="<?= htmlspecialchars($categoryName) ?>"
-                            <?= $categoryName === $firstCategory ? 'selected' : '' ?>
-                        >
-                            <?= htmlspecialchars($categoryName) ?>
-                        </option>
-
+                        <option value="<?= htmlspecialchars($categoryName) ?>" <?= $categoryName === $firstCategory ? 'selected' : '' ?>><?= htmlspecialchars($categoryName) ?></option>
                     <?php endforeach; ?>
-
                 </select>
-
             </div>
-
         <?php endif; ?>
 
+        <!-- UNPAID FEE NOTICE (one per category, shown with the chosen category) -->
+        <?php foreach ($unpaidByCategory as $categoryName => $unpaidNames): ?>
+            <div class="unpaid-notice" data-category="<?= htmlspecialchars($categoryName) ?>"><i class="fa-solid fa-triangle-exclamation"></i><div><strong><?= count($unpaidNames) ?> player<?= count($unpaidNames) === 1 ? ' has' : 's have' ?> not paid the fee yet</strong> in <?= htmlspecialchars($categoryName) ?><?= count($unpaidNames) <= 5 ? ': ' . htmlspecialchars(implode(', ', $unpaidNames)) . '.' : '.' ?> They are marked <strong>NOT PAID</strong> under their name below.</div></div>
+        <?php endforeach; ?>
 
-        <!-- ==========================================================
-            SEEDING FORM
-        =========================================================== -->
-
-        <form
-            method="POST"
-            action="admin_seeding.php?id=<?= $tournamentID ?>"
-        >
-
-            <input
-                type="hidden"
-                name="action"
-                value="save_seeding"
-            >
-
-            <input
-                type="hidden"
-                name="category"
-                class="selected-category-input"
-                value="<?= htmlspecialchars($firstCategory) ?>"
-            >
-
-
-            <!-- ======================================================
-                TABLE
-            ======================================================= -->
+        <!-- SEEDING FORM -->
+        <form method="POST" action="admin_seeding.php?id=<?= $tournamentID ?>">
+            <input type="hidden" name="action" value="save_seeding">
+            <input type="hidden" name="category" class="selected-category-input" value="<?= htmlspecialchars($firstCategory) ?>">
 
             <div class="table-wrapper">
-
                 <table class="players-table">
-
                     <thead>
-
-                        <tr>
-
-                            <th>No.</th>
-
-                            <th>Player</th>
-
-                            <th>Category</th>
-
-                            <th>Nationality</th>
-
-                            <th>World Ranking</th>
-
-                            <th>National Ranking</th>
-
-                            <th>Regional Ranking(AJSS)</th>
-
-                            <th>Seed</th>
-
-                            <th>Endorsement</th>
-
-                        </tr>
-
+                        <tr><th>No.</th><th>Player</th><th>Category</th><th>Nationality</th><th>World Ranking</th><th>National Ranking</th><th>Regional Ranking(AJSS)</th><th>Seed</th><th>Endorsement</th></tr>
                     </thead>
-
-
                     <tbody>
-
-                        <?php if ($playersResult->num_rows > 0): ?>
-
+                        <?php if ($players): ?>
                             <?php $no = 1; ?>
-
-
-                            <?php while ($player = $playersResult->fetch_assoc()): ?>
-
-                                <tr
-                                    data-category="<?= htmlspecialchars($player['category_registered']) ?>"
-                                >
-
-                                    <!-- NO. -->
-
-                                    <td class="row-number">
-                                        <?= $no++ ?>
-                                    </td>
-
-
-                                    <!-- PLAYER -->
-
-                                    <td>
-                                        <?= htmlspecialchars(
-                                            $player['player_full_name']
-                                        ) ?>
-                                    </td>
-
-
-                                    <!-- CATEGORY -->
-
-                                    <td>
-                                        <?= htmlspecialchars(
-                                            $player['category_registered']
-                                        ) ?>
-                                    </td>
-
-
-                                    <!-- NATIONALITY -->
-
-                                    <td>
-                                        <?= htmlspecialchars(
-                                            $player['player_nationality']
-                                        ) ?>
-                                    </td>
-
-
-                                    <!-- WORLD RANKING -->
-
-                                    <td>
-
-                                        <?php if (
-                                            $player['world_ranking'] !== null
-                                            && trim($player['world_ranking']) !== ''
-                                        ): ?>
-
-                                            <?= htmlspecialchars(
-                                                $player['world_ranking']
-                                            ) ?>
-
-                                        <?php else: ?>
-
-                                            -
-
-                                        <?php endif; ?>
-
-                                    </td>
-
-
-                                    <!-- NATIONAL RANKING -->
-
-                                    <td>
-
-                                        <?php if (
-                                            $player['national_ranking'] !== null
-                                            && trim($player['national_ranking']) !== ''
-                                        ): ?>
-
-                                            <?= htmlspecialchars(
-                                                $player['national_ranking']
-                                            ) ?>
-
-                                        <?php else: ?>
-
-                                            -
-
-                                        <?php endif; ?>
-
-                                    </td>
-
-
-                                    <!-- AJSS RANKING -->
-
-                                    <td>
-
-                                        <?php if (
-                                            $player['ajss_ranking'] !== null
-                                            && trim($player['ajss_ranking']) !== ''
-                                        ): ?>
-
-                                            <?= htmlspecialchars(
-                                                $player['ajss_ranking']
-                                            ) ?>
-
-                                        <?php else: ?>
-
-                                            -
-
-                                        <?php endif; ?>
-
-                                    </td>
-
-
-                                    <!-- SEED -->
-
-                                    <td>
-
-                                        <input
-                                            type="number"
-                                            name="seed[<?= (int)$player['registrationID'] ?>]"
-                                            value="<?= $player['seed_number'] !== null ? (int)$player['seed_number'] : '' ?>"
-                                            min="1"
-                                        >
-
-                                    </td>
-
-
-                                    <!-- ENDORSEMENT -->
-
-                                    <td>
-
-                                        <?php if (
-                                            strtoupper(
-                                                trim(
-                                                    $player['endorsement'] ?? ''
-                                                )
-                                            ) === 'ENDORSED'
-                                        ): ?>
-
-                                            <span class="status-endorsed">
-                                                ENDORSED
-                                            </span>
-
-                                        <?php else: ?>
-
-                                            <span class="status-pending">
-                                                PENDING
-                                            </span>
-
-                                        <?php endif; ?>
-
-                                    </td>
-
+                            <?php foreach ($players as $player): ?>
+                                <?php $paid = strtoupper(trim((string) $player['payment_status'])) === 'PAID'; ?>
+                                <tr data-category="<?= htmlspecialchars($player['category_registered']) ?>" class="<?= $paid ? '' : 'unpaid-row' ?>">
+                                    <td class="row-number"><?= $no++ ?></td>
+                                    <td><?= htmlspecialchars($player['player_full_name']) ?><?php if (!$paid): ?><span class="status-unpaid"><i class="fa-solid fa-triangle-exclamation"></i> NOT PAID</span><?php endif; ?></td>
+                                    <td><?= htmlspecialchars($player['category_registered']) ?></td>
+                                    <td><?= htmlspecialchars($player['player_nationality']) ?></td>
+                                    <?php foreach (['world_ranking', 'national_ranking', 'ajss_ranking'] as $rankingColumn): ?>
+                                        <td><?= trim((string) $player[$rankingColumn]) !== '' ? htmlspecialchars($player[$rankingColumn]) : '-' ?></td>
+                                    <?php endforeach; ?>
+                                    <td><input type="number" name="seed[<?= (int)$player['registrationID'] ?>]" value="<?= $player['seed_number'] !== null ? (int)$player['seed_number'] : '' ?>" min="1"></td>
+                                    <td><?php if (strtoupper(trim($player['endorsement'] ?? '')) === 'ENDORSED'): ?><span class="status-endorsed">ENDORSED</span><?php else: ?><span class="status-pending">PENDING</span><?php endif; ?></td>
                                 </tr>
-
-                            <?php endwhile; ?>
-
-
+                            <?php endforeach; ?>
                         <?php else: ?>
-
-                            <tr>
-
-                                <td
-                                    colspan="9"
-                                    style="text-align:center;"
-                                >
-                                    No registered players found.
-                                </td>
-
-                            </tr>
-
+                            <tr><td colspan="9" style="text-align:center;">No registered players found.</td></tr>
                         <?php endif; ?>
-
                     </tbody>
-
                 </table>
-
             </div>
 
-
-            <!-- ======================================================
-                SAVE BUTTON
-            ======================================================= -->
-
-            <div class="save-section">
-
-                <button
-                    type="submit"
-                    class="btn"
-                >
-                    Save Seeding
-                </button>
-
-            </div>
-
+            <div class="save-section"><button type="submit" class="btn">Save Seeding</button></div>
         </form>
-
     </main>
 
-
 <script>
-
-/*
-|--------------------------------------------------------------------------
-| CONFIRM AUTOMATIC SEEDING
-|--------------------------------------------------------------------------
-*/
-
+// Confirm automatic seeding (replaces the seeds in the chosen category)
 function confirmSeeding() {
-
     const categorySelect = document.getElementById('categorySelect');
-
     const category = categorySelect ? categorySelect.value : '';
-
-    return confirm(
-        "Generate automatic seeding for " + category + "? Existing seed numbers in this category will be replaced."
-    );
-
+    return confirm("Generate automatic seeding for " + category + "? Existing seed numbers in this category will be replaced.");
 }
 
-
-/*
-|--------------------------------------------------------------------------
-| FILTER CATEGORY
-|--------------------------------------------------------------------------
-*/
-
+// Show only the chosen category's players and renumber them
 function filterCategory() {
-
-    const categorySelect = document.getElementById(
-        'categorySelect'
-    );
-
+    const categorySelect = document.getElementById('categorySelect');
     if (!categorySelect) {
         return;
     }
-
     const selectedCategory = categorySelect.value;
-
     document.querySelectorAll('.selected-category-input').forEach(function(input) {
         input.value = selectedCategory;
     });
-
-    const rows = document.querySelectorAll(
-        '.players-table tbody tr[data-category]'
-    );
-
     let number = 1;
-
-    rows.forEach(function(row) {
-
-        const rowCategory = row.getAttribute(
-            'data-category'
-        );
-
-        const numberCell = row.querySelector(
-            '.row-number'
-        );
-
-        if (rowCategory === selectedCategory) {
-
-            row.style.display = '';
-
-            if (numberCell) {
-
-                numberCell.textContent = number;
-
-                number++;
-
-            }
-
-        } else {
-
-            row.style.display = 'none';
-
+    document.querySelectorAll('.players-table tbody tr[data-category]').forEach(function(row) {
+        const show = row.getAttribute('data-category') === selectedCategory;
+        const numberCell = row.querySelector('.row-number');
+        row.style.display = show ? '' : 'none';
+        if (show && numberCell) {
+            numberCell.textContent = number++;
         }
-
     });
-
+    document.querySelectorAll('.unpaid-notice').forEach(function(notice) {
+        notice.style.display = notice.getAttribute('data-category') === selectedCategory ? '' : 'none';
+    });
     updateReportLink();
-
 }
 
-
-/*
-|--------------------------------------------------------------------------
-| UPDATE REPORT LINK
-|--------------------------------------------------------------------------
-*/
-
+// Download Report and Draw follow the chosen category
 function updateReportLink() {
-
-    const categorySelect = document.getElementById(
-        'categorySelect'
-    );
-
-    const downloadButton = document.getElementById(
-        'downloadReportBtn'
-    );
-
-    if (!categorySelect || !downloadButton) {
+    const categorySelect = document.getElementById('categorySelect');
+    if (!categorySelect) {
         return;
     }
-
-    const selectedCategory = categorySelect.value;
-
-    downloadButton.href =
-        'admin_seeding_report.php'
-        + '?tournamentID=<?= $tournamentID ?>'
-        + '&category='
-        + encodeURIComponent(selectedCategory);
-
+    const category = encodeURIComponent(categorySelect.value);
+    const downloadButton = document.getElementById('downloadReportBtn');
     const drawButton = document.getElementById('drawBtn');
-
+    if (downloadButton) {
+        downloadButton.href = 'admin_seeding_report.php?tournamentID=<?= $tournamentID ?>&category=' + category;
+    }
     if (drawButton) {
-        drawButton.href =
-            'admin_draw.php'
-            + '?id=<?= $tournamentID ?>'
-            + '&category='
-            + encodeURIComponent(selectedCategory);
+        drawButton.href = 'admin_draw.php?id=<?= $tournamentID ?>&category=' + category;
     }
 }
 
-
-/*
-|--------------------------------------------------------------------------
-| INITIALIZE PAGE
-|--------------------------------------------------------------------------
-*/
-
-document.addEventListener('DOMContentLoaded', function() {
-
-    filterCategory();
-
-});
-
+document.addEventListener('DOMContentLoaded', filterCategory);
 </script>
-
-
 </body>
-
 </html>

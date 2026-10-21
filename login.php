@@ -6,6 +6,7 @@ require './db.php';
 $error = "";
 $login_success = false;
 $redirect_url = "";
+$welcome_name = "";   // shown on the loading screen
 
 // Sent here by a player page after the account was deactivated
 if (isset($_GET['deactivated'])) {
@@ -52,6 +53,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $_SESSION["userid"] = $admin["adminid"];
             $_SESSION["role"] = "admin";
             $_SESSION["admin_name"] = $admin["admin_name"];
+            $welcome_name = $admin["admin_name"];
 
             // Tournament Organizers start on their tournament list
             $redirect_url = $admin["admin_role"] === 'organizer'
@@ -103,6 +105,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 $_SESSION["role"] = "player";
                 $_SESSION["playerid"] = $player["playerid"];
                 $_SESSION["firstname"] = $player["player_first_name"];
+                $welcome_name = $player["player_first_name"];
                 $_SESSION["lastname"] = $player["player_last_name"];
 
                 $redirect_url = "player/player_index.php";
@@ -140,10 +143,16 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
     <?php if ($login_success): ?>
 
+        <!-- Bouncing squash ball + progress bar (2.5 s, same as the redirect below) -->
         <div class="loading-screen">
-            <div class="loader"></div>
-            <h2>Logging you in...</h2>
-            <p>Please wait a moment</p>
+            <div class="loading-glow"></div>
+            <div class="ball-stage" aria-hidden="true">
+                <div class="ball"></div>
+                <div class="ball-shadow"></div>
+            </div>
+            <h2>Welcome back<?= $welcome_name !== '' ? ', ' . htmlspecialchars($welcome_name) : '' ?></h2>
+            <p class="loading-text" role="status">Logging you in<span class="dots"><span>.</span><span>.</span><span>.</span></span></p>
+            <div class="loading-progress"><span></span></div>
         </div>
 
         <script>
@@ -152,7 +161,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 window.location.href =
                     <?= json_encode($redirect_url) ?>;
 
-            }, 1500);
+            }, 2500);
         </script>
 
     <?php else: ?>

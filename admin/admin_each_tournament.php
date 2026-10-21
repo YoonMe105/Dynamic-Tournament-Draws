@@ -317,7 +317,7 @@ function categoryBadge($registrationID, $category, $wrongCategories)
 
     $title = $wrong['correct'] !== null
         ? 'Wrong category. The correct category is ' . $wrong['correct'] . '.'
-        : 'Wrong category. There is no category in this tournament for age ' . $wrong['age'] . '.';
+        : 'Wrong category. The player ' . noOlderCategoryText($wrong['category'], $wrong['age']);
 
     return '<span class="category-badge category-wrong" title="' . htmlspecialchars($title) . '">'
         . '<i class="fa-solid fa-triangle-exclamation"></i> ' . $category
@@ -608,26 +608,13 @@ function categoryBadge($registrationID, $category, $wrongCategories)
                             <?php if ($wrong['correct'] !== null): ?>
                                 but the correct category is <strong><?= htmlspecialchars($wrong['correct']) ?></strong>.
                             <?php else: ?>
-                                but there is no category in this tournament for age <?= $wrong['age'] ?>.
+                                but <?= htmlspecialchars(noOlderCategoryText($wrong['category'], $wrong['age'])) ?>
                             <?php endif; ?>
                         </li>
                     <?php endforeach; ?>
                 </ul>
 
             </div>
-
-
-            <script>
-                window.addEventListener('load', function () {
-                    alert(<?= json_encode(
-                        "Wrong category!\n\n"
-                        . implode("\n", array_map(function ($wrong) {
-                            return '- ' . wrongCategoryMessage($wrong['name'], $wrong['category'], $wrong['correct'], $wrong['age']);
-                        }, $wrongCategories))
-                        . "\n\nAge cut-off date: " . overviewDate($tournament['tournament_age_cutoff'], false)
-                    ) ?>);
-                });
-            </script>
 
         <?php endif; ?>
 
@@ -1245,16 +1232,6 @@ function categoryBadge($registrationID, $category, $wrongCategories)
             ======================================================= -->
 
             <div class="seeding-actions">
-
-                <form method="POST" action="admin_seeding.php?id=<?= $tournamentID ?>&category=<?= urlencode($selectedCategory) ?>" onsubmit="automaticSeedingLoading()">
-                    <input type="hidden" name="action" value="automatic_seeding">
-                    <input type="hidden" name="category" value="<?= htmlspecialchars($selectedCategory) ?>">
-
-                    <button type="submit" id="automaticSeedingBtn" class="btn" <?= empty($selectedCategory) ? 'disabled' : '' ?>>
-                        Automatic Seeding
-                    </button>
-                </form>
-
 
                 <a
                     href="admin_seeding.php?id=<?= $tournamentID ?>&category=<?= urlencode($selectedCategory) ?>"
@@ -2031,16 +2008,6 @@ document.addEventListener(
 
     }
 );
-
-function automaticSeedingLoading() {
-
-    const button = document.getElementById('automaticSeedingBtn');
-
-    if (button) {
-        button.disabled = true;
-        button.textContent = 'Generating Seeding...';
-    }
-}
 
 </script>
 

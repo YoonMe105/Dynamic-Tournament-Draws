@@ -348,3 +348,197 @@
     opacity: 0.6;
     cursor: wait;
 }
+
+
+/* ==========================================================
+   EDIT DRAW (drag and drop the first round)
+========================================================== */
+
+.draw-editor {
+    margin-top: 6px;
+}
+
+.editor-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px 20px;
+    margin-bottom: 16px;
+    padding: 14px 16px;
+    border: 1px solid #e6d3e1;
+    border-radius: 10px;
+    background: #fbf5fa;
+}
+
+.editor-head p {
+    flex: 1 1 420px;
+    margin: 0;
+    color: #4a5068;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.editor-head i {
+    color: #993D86;
+}
+
+.editor-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.editor-actions .back-btn[disabled] {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.editor-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 12px;
+}
+
+.editor-match {
+    padding: 10px 12px 12px;
+    border: 1px solid #dfe3e8;
+    border-radius: 10px;
+    background: #ffffff;
+}
+
+.editor-match-no {
+    display: block;
+    margin-bottom: 6px;
+    color: #993D86;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+.editor-vs {
+    display: block;
+    margin: 3px 0;
+    color: #aaa;
+    font-size: 11px;
+    font-weight: 700;
+    text-align: center;
+    text-transform: uppercase;
+}
+
+.editor-slot {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    height: 38px;
+    padding: 0 10px;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #333;
+    font-size: 13px;
+    cursor: grab;
+    user-select: none;
+    transition: border-color 0.15s, background 0.15s, box-shadow 0.15s, transform 0.15s;
+}
+
+.editor-slot:hover {
+    border-color: #c9a3c0;
+    box-shadow: 0 2px 6px rgba(153, 61, 134, 0.12);
+}
+
+.editor-slot:focus-visible {
+    outline: 3px solid rgba(153, 61, 134, 0.35);
+    outline-offset: 1px;
+}
+
+.editor-slot .grip {
+    color: #c9c9d2;
+    font-size: 12px;
+}
+
+.editor-slot .seed {
+    min-width: 26px;
+    color: #993D86;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.editor-slot .player-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.editor-slot .country {
+    color: #999;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.editor-slot.is-bye {
+    border-style: dashed;
+    background: #fafafa;
+}
+
+.editor-slot.is-bye .player-name {
+    color: #aaa;
+    font-style: italic;
+}
+
+.editor-slot.dragging {
+    opacity: 0.45;
+    cursor: grabbing;
+}
+
+.editor-slot.drop-target {
+    border-color: #993D86;
+    background: #f6eaf3;
+    transform: scale(1.02);
+}
+
+.editor-slot.picked {
+    border-color: #993D86;
+    background: #f6eaf3;
+    box-shadow: 0 0 0 3px rgba(153, 61, 134, 0.18);
+}
+
+.editor-slot.just-moved {
+    animation: slot-moved 0.6s ease-out;
+}
+
+@keyframes slot-moved {
+    from { background: #fff1c2; }
+    to   { background: inherit; }
+}
+
+.editor-error {
+    margin: 14px 0 0;
+    padding: 10px 14px;
+    border: 1px solid #f3c2c2;
+    border-radius: 8px;
+    background: #fdecec;
+    color: #a12a2a;
+    font-size: 14px;
+}
+
+.locked-note {
+    margin: 0 0 12px;
+    color: #6b7280;
+    font-size: 14px;
+}
+
+.out-of-date {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.out-of-date form {
+    margin: 0;
+}

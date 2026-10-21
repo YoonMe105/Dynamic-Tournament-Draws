@@ -61,8 +61,10 @@ function splitFee($fee)
 {
     $fee = trim((string) $fee);
 
-    $hasRM = preg_match('/\b(?:RM|MYR)\s*\d[\d,]*(?:\.\d+)?/i', $fee, $rm);
-    $hasUSD = preg_match('/\b(?:USD|US\$)\s*\$?\s*\d[\d,]*(?:\.\d+)?/i', $fee, $usd);
+    // A comma only belongs to the amount as a thousands separator (RM1,200) -
+    // not the one after it ("Local: RM200, Foreign: ...")
+    $hasRM = preg_match('/\b(?:RM|MYR)\s*\d+(?:,\d{3})*(?:\.\d+)?/i', $fee, $rm);
+    $hasUSD = preg_match('/\b(?:USD|US\$)\s*\$?\s*\d+(?:,\d{3})*(?:\.\d+)?/i', $fee, $usd);
 
     if (!$hasRM || !$hasUSD) {
         return ['local' => $fee, 'foreign' => null, 'details' => null, 'currency' => feeCurrency($fee)];

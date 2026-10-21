@@ -339,88 +339,170 @@ input:focus {
 ========================= */
 
 .loading-screen {
-
     position: fixed;
-
-    top: 0;
-
-    left: 0;
-
-    width: 100%;
-
-    height: 100vh;
-
-    background:
-        linear-gradient(
-            135deg,
-            #FFFFFF,
-            #9a8e9b
-        );
-
+    inset: 0;
     display: flex;
-
     flex-direction: column;
-
     justify-content: center;
-
     align-items: center;
-
-    color: white;
-
+    overflow: hidden;
+    background: linear-gradient(135deg, #993D86, #5c2152);
+    color: #ffffff;
     z-index: 9999;
+    animation: loading-fade-in 0.35s ease-out both;
 }
 
+/* Soft light slowly drifting behind the ball */
+.loading-glow {
+    position: absolute;
+    width: 420px;
+    height: 420px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.22), transparent 65%);
+    animation: loading-glow 3s ease-in-out infinite alternate;
+}
 
 .loading-screen h2 {
-
-    color: white;
-
-    margin-top: 25px;
-
+    position: relative;
+    margin: 26px 0 0;
     font-size: 24px;
+    letter-spacing: 0.3px;
+    animation: loading-rise 0.5s 0.1s ease-out both;
 }
 
-
-.loading-screen p {
-
-    margin-top: 8px;
-
+.loading-text {
+    position: relative;
+    margin: 8px 0 0;
     font-size: 14px;
-
-    opacity: 0.8;
+    opacity: 0.85;
+    animation: loading-rise 0.5s 0.2s ease-out both;
 }
 
 
 /* =========================
-    LOADER
+    BOUNCING SQUASH BALL
 ========================= */
 
-.loader {
+.ball-stage {
+    position: relative;
+    width: 90px;
+    height: 110px;
+}
 
-    width: 55px;
-
-    height: 55px;
-
-    border: 5px solid
-        rgba(255, 255, 255, 0.3);
-
-    border-top: 5px solid white;
-
+.ball {
+    position: absolute;
+    left: 50%;
+    bottom: 14px;
+    width: 34px;
+    height: 34px;
+    margin-left: -17px;
     border-radius: 50%;
+    /* Black squash ball with a shine and the two yellow dots */
+    background:
+        radial-gradient(circle at 32% 30%, rgba(255, 255, 255, 0.55) 0 3px, transparent 4px),
+        radial-gradient(circle at 42% 50%, #f4c430 0 2.5px, transparent 3px),
+        radial-gradient(circle at 60% 50%, #f4c430 0 2.5px, transparent 3px),
+        radial-gradient(circle at 35% 35%, #3a3a3a, #0d0d0d 70%);
+    transform-origin: 50% 100%;
+    animation: ball-bounce 0.75s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
 
-    animation:
-        spin 1s linear infinite;
+.ball-shadow {
+    position: absolute;
+    left: 50%;
+    bottom: 4px;
+    width: 40px;
+    height: 8px;
+    margin-left: -20px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.35);
+    animation: ball-shadow 0.75s cubic-bezier(0.45, 0, 0.55, 1) infinite;
 }
 
 
-@keyframes spin {
+/* =========================
+    DOTS + PROGRESS BAR
+========================= */
 
-    0% {
-        transform: rotate(0deg);
-    }
+.dots span {
+    display: inline-block;
+    animation: loading-dot 1.2s infinite;
+}
 
-    100% {
-        transform: rotate(360deg);
+.dots span:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.dots span:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+.loading-progress {
+    position: relative;
+    width: 200px;
+    height: 5px;
+    margin-top: 22px;
+    overflow: hidden;
+    border-radius: 5px;
+    background: rgba(255, 255, 255, 0.25);
+}
+
+/* Fills in 2.5 s - the same time login.php waits before opening the next page */
+.loading-progress span {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border-radius: 5px;
+    background: #ffffff;
+    transform: scaleX(0);
+    transform-origin: left;
+    animation: loading-progress 2.5s ease-in-out forwards;
+}
+
+
+@keyframes ball-bounce {
+    0%, 100% { transform: translateY(-62px) scale(1, 1); }
+    45%      { transform: translateY(-4px) scale(1, 1); }
+    50%      { transform: translateY(0) scale(1.25, 0.75); }   /* squash on the floor */
+    58%      { transform: translateY(-10px) scale(0.92, 1.08); }
+}
+
+@keyframes ball-shadow {
+    0%, 100% { transform: scale(0.45); opacity: 0.25; }
+    50%      { transform: scale(1.1); opacity: 0.6; }
+}
+
+@keyframes loading-dot {
+    0%, 60%, 100% { opacity: 0.2; transform: translateY(0); }
+    30%           { opacity: 1; transform: translateY(-3px); }
+}
+
+@keyframes loading-progress {
+    to { transform: scaleX(1); }
+}
+
+@keyframes loading-glow {
+    from { transform: translate(-60px, -30px) scale(0.9); }
+    to   { transform: translate(60px, 30px) scale(1.1); }
+}
+
+@keyframes loading-rise {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes loading-fade-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+/* People who turn off animations in their system settings get a still screen */
+@media (prefers-reduced-motion: reduce) {
+    .ball,
+    .ball-shadow,
+    .loading-glow,
+    .dots span {
+        animation: none;
     }
 }
 

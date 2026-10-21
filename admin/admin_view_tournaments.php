@@ -241,7 +241,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_changes'])) {
     $tournament_startdate = $_POST['tournament_startdate'];
     $tournament_enddate = $_POST['tournament_enddate'];
     $tournament_deadline = $_POST['tournament_deadline'];
-    $tournament_age_cutoff = !empty($_POST['tournament_age_cutoff'])
+    // "No age cut-off date" or an empty date = no cut-off (age categories open to every age)
+    $tournament_age_cutoff = ($_POST['age_cutoff_mode'] ?? 'date') !== 'none' && !empty($_POST['tournament_age_cutoff'])
         ? $_POST['tournament_age_cutoff']
         : null;
 
@@ -904,12 +905,24 @@ if ($tournament) {
                                 <div class="field">
                                     <span class="field-label">Age Cut-off Date</span>
 
+                                    <?php $hasCutoff = !empty($tournament['tournament_age_cutoff']) && strpos($tournament['tournament_age_cutoff'], '0000') !== 0; ?>
+
                                     <?php if ($edit_mode): ?>
-                                        <input type="date" name="tournament_age_cutoff"
-                                               value="<?= !empty($tournament['tournament_age_cutoff']) ? date('Y-m-d', strtotime($tournament['tournament_age_cutoff'])) : '' ?>">
+                                        <div class="cutoff-choice">
+                                            <label class="cutoff-option">
+                                                <input type="radio" name="age_cutoff_mode" value="date" <?= $hasCutoff ? 'checked' : '' ?>>
+                                                <span>Cut-off date</span>
+                                                <input type="date" id="tournament_age_cutoff" name="tournament_age_cutoff"
+                                                       value="<?= $hasCutoff ? date('Y-m-d', strtotime($tournament['tournament_age_cutoff'])) : '' ?>">
+                                            </label>
+                                            <label class="cutoff-option">
+                                                <input type="radio" name="age_cutoff_mode" value="none" <?= $hasCutoff ? '' : 'checked' ?>>
+                                                <span>No age cut-off date</span>
+                                            </label>
+                                        </div>
                                     <?php else: ?>
-                                        <span class="field-value <?= empty($tournament['tournament_age_cutoff']) ? 'empty' : '' ?>">
-                                            <?= viewDate($tournament['tournament_age_cutoff'], 'd M Y') ?>
+                                        <span class="field-value <?= $hasCutoff ? '' : 'empty' ?>">
+                                            <?= $hasCutoff ? viewDate($tournament['tournament_age_cutoff'], 'd M Y') : 'No age cut-off date' ?>
                                         </span>
                                     <?php endif; ?>
                                 </div>
@@ -1480,6 +1493,36 @@ if ($tournament) {
             });
 
         }
+    </script>
+
+    <script>
+        // Age cut-off: the date is only used (and required) with "Cut-off date"
+        (function () {
+            const date = document.getElementById('tournament_age_cutoff');
+            const modes = document.querySelectorAll('input[name="age_cutoff_mode"]');
+
+            if (!date || !modes.length) {
+                return;
+            }
+
+            function update() {
+                const useDate = document.querySelector('input[name="age_cutoff_mode"]:checked').value === 'date';
+                date.disabled = !useDate;
+                date.required = useDate;
+                date.hidden = !useDate;
+            }
+
+            modes.forEach(function (mode) {
+                mode.addEventListener('change', function () {
+                    update();
+                    if (mode.value === 'date' && mode.checked) {
+                        date.focus();
+                    }
+                });
+            });
+
+            update();
+        })();
     </script>
 
 </body>

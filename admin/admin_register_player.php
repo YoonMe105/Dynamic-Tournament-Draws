@@ -266,6 +266,9 @@ if (isset($_GET['registered'])) {
 
     <main class="admins-page">
 
+        <!-- Everything in one centred column -->
+        <div class="register-wrap">
+
         <a href="admin_each_tournament.php?id=<?= $tournamentID ?>" class="back-link">&larr; Back to Tournament</a>
 
         <div class="page-title page-title-row">
@@ -275,7 +278,7 @@ if (isset($_GET['registered'])) {
             </div>
             <a class="excel-link" href="admin_register_players_excel.php?id=<?= $tournamentID ?>">
                 <i class="fa-solid fa-file-excel"></i>
-                Register many from Excel
+                Register players from Excel
             </a>
         </div>
 
@@ -539,6 +542,8 @@ if (isset($_GET['registered'])) {
             </form>
 
         <?php endif; ?>
+
+        </div>
 
     </main>
 

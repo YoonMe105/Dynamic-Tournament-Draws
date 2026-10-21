@@ -196,9 +196,6 @@ $wrongCategory = wrongAgeCategory(
     $registration['tournament_age_cutoff']
 );
 
-$cutoffText = !empty($registration['tournament_age_cutoff'])
-    ? date("d/m/Y", strtotime($registration['tournament_age_cutoff']))
-    : "";
 
 
 /*
@@ -627,14 +624,6 @@ $remarks = !empty($registration['admin_remark'])
 
         </div>
 
-        <script>
-            window.addEventListener('load', function () {
-                alert(<?php echo json_encode(
-                    "Wrong category!\n\n" . $wrongCategoryText
-                    . "\n\nAge cut-off date: " . $cutoffText
-                ); ?>);
-            });
-        </script>
 
     <?php endif; ?>
 

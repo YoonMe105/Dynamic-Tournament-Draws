@@ -693,3 +693,36 @@
     }
 
 }
+
+
+/* Age cut-off: a date, or "No age cut-off date" */
+.cutoff-choice {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.cutoff-option {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 10px;
+    margin: 0;
+    font-weight: normal;
+    cursor: pointer;
+}
+
+.cutoff-option input[type="radio"] {
+    width: auto;
+    margin: 0;
+    accent-color: #993D86;
+}
+
+.cutoff-option input[type="date"] {
+    flex: 1 1 160px;
+    width: auto;
+}
+
+.cutoff-option input[type="date"][hidden] {
+    display: none;
+}

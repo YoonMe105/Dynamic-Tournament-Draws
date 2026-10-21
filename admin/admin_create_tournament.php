@@ -154,6 +154,7 @@ $tournament_fee = '';
 $tournament_fee_usd = '';
 $tournament_type = '';
 $tournament_age_cutoff = '';
+$age_cutoff_mode = 'date';   // 'date' = a cut-off date, 'none' = no age cut-off
 $tournament_tshirt_size = '';
 $tournament_detail_link = '';
 
@@ -210,7 +211,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $_POST['tournament_type'] ?? ''
     );
 
-    $tournament_age_cutoff = $_POST['tournament_age_cutoff'] ?? '';
+    $age_cutoff_mode = ($_POST['age_cutoff_mode'] ?? 'date') === 'none' ? 'none' : 'date';
+    $tournament_age_cutoff = $age_cutoff_mode === 'none' ? '' : trim($_POST['tournament_age_cutoff'] ?? '');
 
     $tournament_tshirt_size = trim(
         $_POST['tournament_tshirt_size'] ?? ''
@@ -327,6 +329,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif (stripos($tournament_type, 'international') !== false && $tournament_fee === '' && $tournament_fee_usd === '') {
 
         $error_message = 'Please enter the RM fee, the USD fee, or both.';
+
+    } elseif ($age_cutoff_mode === 'date' && $tournament_age_cutoff === '') {
+
+        $error_message = 'Please choose the age cut-off date, or select "No age cut-off date".';
 
     } elseif ($category_type === '') {
 
@@ -805,10 +811,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                value="<?= htmlspecialchars(str_replace(' ', 'T', $tournament_deadline)) ?>" required>
                     </div>
 
-                    <div class="form-group">
-                        <label for="tournament_age_cutoff">Age Cut-off Date</label>
-                        <input type="date" id="tournament_age_cutoff" name="tournament_age_cutoff"
-                               value="<?= htmlspecialchars($tournament_age_cutoff) ?>">
+                    <!-- A cut-off date, or none (age categories are then open to every age) -->
+                    <div class="form-group cutoff-choice">
+                        <label>Age Cut-off Date</label>
+                        <label class="cutoff-option">
+                            <input type="radio" name="age_cutoff_mode" value="date" <?= $age_cutoff_mode !== 'none' ? 'checked' : '' ?>>
+                            <span>Cut-off date</span>
+                            <input type="date" id="tournament_age_cutoff" name="tournament_age_cutoff"
+                                   value="<?= htmlspecialchars($tournament_age_cutoff) ?>">
+                        </label>
+                        <label class="cutoff-option">
+                            <input type="radio" name="age_cutoff_mode" value="none" <?= $age_cutoff_mode === 'none' ? 'checked' : '' ?>>
+                            <span>No age cut-off date</span>
+                        </label>
+                        <small class="form-note">Players' ages for the age categories (BU13, GU15 ...) are worked out on this date.</small>
                     </div>
 
                 </div>
@@ -1102,6 +1118,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         button.textContent = 'Creating...';
     });
 </script>
+
+    <script>
+        // Age cut-off: the date is only used (and required) with "Cut-off date"
+        (function () {
+            const date = document.getElementById('tournament_age_cutoff');
+            const modes = document.querySelectorAll('input[name="age_cutoff_mode"]');
+
+            if (!date || !modes.length) {
+                return;
+            }
+
+            function update() {
+                const useDate = document.querySelector('input[name="age_cutoff_mode"]:checked').value === 'date';
+                date.disabled = !useDate;
+                date.required = useDate;
+                date.hidden = !useDate;
+            }
+
+            modes.forEach(function (mode) {
+                mode.addEventListener('change', function () {
+                    update();
+                    if (mode.value === 'date' && mode.checked) {
+                        date.focus();
+                    }
+                });
+            });
+
+            update();
+        })();
+    </script>
 
 </body>
 </html>

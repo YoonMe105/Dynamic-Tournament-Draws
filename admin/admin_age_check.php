@@ -111,5 +111,21 @@ function wrongCategoryMessage($name, $category, $correctCategory, $age)
 
     return $correctCategory !== null
         ? $message . 'the correct category is ' . $correctCategory . '.'
-        : $message . 'there is no category in this tournament for age ' . $age . '.';
+        : $message . noOlderCategoryText($category, $age);
+}
+
+
+/*
+| When no category fits: "is 19 on the age cut-off date - too old for GU19
+| (players must be under 19) - and this tournament has no older girls' category."
+*/
+function noOlderCategoryText($category, $age)
+{
+    $category = trim((string) $category);
+    $maxAge = preg_match('/U\s*(\d+)|under\s*(\d+)/i', $category, $matches) ? (int) ($matches[1] ?: $matches[2]) : null;
+    $group = preg_match('/^G|girls?/i', $category) ? "girls' " : (preg_match('/^B|boys?/i', $category) ? "boys' " : '');
+
+    return 'is ' . $age . ' on the age cut-off date - too old for ' . $category
+        . ($maxAge !== null ? ' (players must be under ' . $maxAge . ')' : '')
+        . ' - and this tournament has no older ' . $group . 'category.';
 }

@@ -100,6 +100,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
 
+        // Edit Draw: the first round rearranged by drag and drop
+        if ($action === 'save_edit') {
+
+            $positions = [];
+
+            foreach ((array) ($_POST['positions'] ?? []) as $place => $playerID) {
+                $positions[(int) $place] = (string) $playerID;
+            }
+
+            saveDrawPositions($conn, $tournamentID, $category, $positions);
+
+            header("Location: " . $pageUrl . "&message=edited");
+            exit;
+        }
+
         if ($action === 'delete') {
 
             deleteDraw($conn, $tournamentID, $category);
@@ -151,6 +166,23 @@ if (!empty($draw[1])) {
 }
 
 $drawOutOfDate = $selectedInfo && $selectedInfo['has_draw'] && $drawPlayerCount !== $selectedInfo['players'];
+
+// Edit Draw: only while no real match has a result
+$drawLocked = $draw && drawHasResults($draw);
+$editMode = isset($_GET['edit']) && $draw && !$drawLocked;
+
+// "[1] Sofia Chen (SGP)" parts for the editor
+function editSlot($match, $number)
+{
+    $id = $match['player' . $number . 'ID'];
+
+    return [
+        'id' => $id ?? '',
+        'seed' => $match['player' . $number . '_seed'],
+        'name' => $id === null ? 'Bye' : ($match['player' . $number . '_name'] ?? $id),
+        'country' => $id === null ? '' : countryCode($match['player' . $number . '_nationality'] ?? ''),
+    ];
+}
 
 
 ?>
@@ -214,6 +246,12 @@ $drawOutOfDate = $selectedInfo && $selectedInfo['has_draw'] && $drawPlayerCount 
             <div class="success-message">
                 The draw has been made for <?= htmlspecialchars($selectedCategory) ?>
                 (<?= (int)($_GET['players'] ?? 0) ?> players).
+            </div>
+
+        <?php elseif (($_GET['message'] ?? '') === 'edited'): ?>
+
+            <div class="success-message">
+                The draw for <?= htmlspecialchars($selectedCategory) ?> has been changed.
             </div>
 
         <?php elseif (($_GET['message'] ?? '') === 'deleted'): ?>
@@ -290,19 +328,20 @@ $drawOutOfDate = $selectedInfo && $selectedInfo['has_draw'] && $drawPlayerCount 
 
                 <div class="draw-actions">
 
-                    <?php if ($selectedInfo['players'] >= 2 && $selectedInfo['unseeded'] === 0): ?>
+                    <?php if (!$selectedInfo['has_draw'] && $selectedInfo['players'] >= 2 && $selectedInfo['unseeded'] === 0): ?>
 
                         <form method="POST" action="<?= htmlspecialchars($pageUrl) ?>"
-                              onsubmit="return confirmGenerate(<?= $selectedInfo['has_draw'] ? 'true' : 'false' ?>);">
-
+                              onsubmit="return confirm('Make the draw for this category?');">
                             <input type="hidden" name="action" value="generate">
                             <input type="hidden" name="category" value="<?= htmlspecialchars($selectedCategory) ?>">
-
-                            <button type="submit" class="btn">
-                                <?= $selectedInfo['has_draw'] ? 'Remake Draw' : 'Make Draw' ?>
-                            </button>
-
+                            <button type="submit" class="btn">Make Draw</button>
                         </form>
+
+                    <?php elseif ($draw && !$editMode && !$drawLocked): ?>
+
+                        <a href="<?= htmlspecialchars($pageUrl) ?>&edit=1" class="btn">
+                            <i class="fa-solid fa-pen"></i> Edit Draw
+                        </a>
 
                     <?php endif; ?>
 
@@ -365,9 +404,19 @@ $drawOutOfDate = $selectedInfo && $selectedInfo['has_draw'] && $drawPlayerCount 
 
             <?php if ($drawOutOfDate): ?>
 
-                <div class="warning-message">
-                    This draw has <?= $drawPlayerCount ?> players, but <?= $selectedInfo['players'] ?> players are endorsed now.
-                    Remake the draw to include the changes.
+                <div class="warning-message out-of-date">
+                    <span>
+                        This draw has <?= $drawPlayerCount ?> players, but <?= $selectedInfo['players'] ?> players are endorsed now.
+                        Make the draw again to include the changes (any edits to the draw will be lost).
+                    </span>
+                    <?php if ($selectedInfo['unseeded'] === 0 && !$drawLocked): ?>
+                        <form method="POST" action="<?= htmlspecialchars($pageUrl) ?>"
+                              onsubmit="return confirm('Make the draw again? The current draw, including any edits, will be replaced.');">
+                            <input type="hidden" name="action" value="generate">
+                            <input type="hidden" name="category" value="<?= htmlspecialchars($selectedCategory) ?>">
+                            <button type="submit" class="btn">Make Draw Again</button>
+                        </form>
+                    <?php endif; ?>
                 </div>
 
             <?php endif; ?>
@@ -377,7 +426,74 @@ $drawOutOfDate = $selectedInfo && $selectedInfo['has_draw'] && $drawPlayerCount 
                 BRACKET
             =========================================================== -->
 
-            <?php if ($draw): ?>
+            <?php if ($editMode): ?>
+
+                <!-- ==========================================================
+                    EDIT DRAW: drag a player onto another player (or a bye)
+                    to swap their places; or click one, then the other
+                =========================================================== -->
+
+                <form method="POST" action="<?= htmlspecialchars($pageUrl) ?>" class="draw-editor" id="drawEditor">
+
+                    <input type="hidden" name="action" value="save_edit">
+                    <input type="hidden" name="category" value="<?= htmlspecialchars($selectedCategory) ?>">
+
+                    <div class="editor-head">
+                        <p>
+                            <i class="fa-solid fa-hand-pointer"></i>
+                            <strong>Drag a player onto another player</strong> (or onto a Bye) to swap their places.
+                            You can also click one player, then the other. The later rounds are worked out again when you save.
+                        </p>
+                        <div class="editor-actions">
+                            <button type="button" class="back-btn" id="undoSwap" disabled>
+                                <i class="fa-solid fa-rotate-left"></i> Undo
+                            </button>
+                            <a href="<?= htmlspecialchars($pageUrl) ?>" class="back-btn">Cancel</a>
+                            <button type="submit" class="btn" id="saveDraw">Save Draw</button>
+                        </div>
+                    </div>
+
+                    <div class="editor-grid">
+
+                        <?php foreach ($draw[1] as $number => $match): ?>
+
+                            <div class="editor-match">
+
+                                <span class="editor-match-no">Match <?= (int) $number ?></span>
+
+                                <?php foreach ([1, 2] as $side): ?>
+                                    <?php $slot = editSlot($match, $side); $place = ($number - 1) * 2 + $side; ?>
+
+                                    <div class="editor-slot <?= $slot['id'] === '' ? 'is-bye' : '' ?>"
+                                         draggable="true" data-place="<?= $place ?>" tabindex="0">
+                                        <input type="hidden" name="positions[<?= $place ?>]" value="<?= htmlspecialchars($slot['id']) ?>">
+                                        <i class="fa-solid fa-grip-vertical grip" aria-hidden="true"></i>
+                                        <span class="seed"><?= $slot['seed'] !== null ? '[' . (int) $slot['seed'] . ']' : '' ?></span>
+                                        <span class="player-name"><?= htmlspecialchars($slot['name']) ?></span>
+                                        <span class="country"><?= htmlspecialchars($slot['country']) ?></span>
+                                    </div>
+
+                                    <?php if ($side === 1): ?>
+                                        <span class="editor-vs">vs</span>
+                                    <?php endif; ?>
+
+                                <?php endforeach; ?>
+
+                            </div>
+
+                        <?php endforeach; ?>
+
+                    </div>
+
+                    <p class="editor-error" id="editorError" hidden></p>
+
+                </form>
+
+            <?php elseif ($draw): ?>
+
+                <?php if ($drawLocked): ?>
+                    <p class="locked-note"><i class="fa-solid fa-lock"></i> Matches already have results, so the draw can't be edited any more.</p>
+                <?php endif; ?>
 
                 <div class="bracket-wrapper">
                     <?php renderBracket($draw); ?>
@@ -404,14 +520,149 @@ $drawOutOfDate = $selectedInfo && $selectedInfo['has_draw'] && $drawPlayerCount 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="assets/bracket_download.js?v=<?= filemtime(__DIR__ . '/assets/bracket_download.js') ?>"></script>
 
+    <?php if ($editMode): ?>
     <script>
-        function confirmGenerate(hasDraw) {
+        // Edit Draw: swap two places by drag and drop (or click one, then the other)
+        (function () {
 
-            return confirm(hasDraw
-                ? 'Remake the draw? The current draw will be replaced with a new one.'
-                : 'Make the draw for this category?');
-        }
+            const editor = document.getElementById('drawEditor');
+            const slots = Array.from(editor.querySelectorAll('.editor-slot'));
+            const undo = document.getElementById('undoSwap');
+            const error = document.getElementById('editorError');
+            const history = [];
+            let dragged = null;
+            let picked = null;
+            let changed = false;
+
+            // Everything shown in a slot moves with the player
+            function swap(a, b, remember) {
+                if (a === b) {
+                    return;
+                }
+
+                // The hidden input keeps its place number (name), only the value moves
+                const inputA = a.querySelector('input');
+                const inputB = b.querySelector('input');
+                const valueA = inputA.value;
+                inputA.value = inputB.value;
+                inputB.value = valueA;
+
+                ['.seed', '.player-name', '.country'].forEach(function (selector) {
+                    const x = a.querySelector(selector);
+                    const y = b.querySelector(selector);
+                    const text = x.textContent;
+                    x.textContent = y.textContent;
+                    y.textContent = text;
+                });
+
+                a.classList.toggle('is-bye', inputA.value === '');
+                b.classList.toggle('is-bye', inputB.value === '');
+
+                [a, b].forEach(function (slot) {
+                    slot.classList.remove('just-moved');
+                    void slot.offsetWidth;          // restart the flash
+                    slot.classList.add('just-moved');
+                });
+
+                if (remember) {
+                    history.push([a, b]);
+                }
+
+                changed = history.length > 0;
+                undo.disabled = history.length === 0;
+                check();
+            }
+
+            // A match can't have two byes
+            function check() {
+                const problem = Array.from(editor.querySelectorAll('.editor-match')).find(function (match) {
+                    return Array.from(match.querySelectorAll('input')).every(function (input) { return input.value === ''; });
+                });
+
+                error.hidden = !problem;
+                error.textContent = problem ? problem.querySelector('.editor-match-no').textContent + ' has two byes - every match needs at least one player.' : '';
+                document.getElementById('saveDraw').disabled = !!problem;
+            }
+
+            slots.forEach(function (slot) {
+
+                slot.addEventListener('dragstart', function (event) {
+                    dragged = slot;
+                    slot.classList.add('dragging');
+                    event.dataTransfer.effectAllowed = 'move';
+                    event.dataTransfer.setData('text/plain', slot.dataset.place);
+                });
+
+                slot.addEventListener('dragend', function () {
+                    slot.classList.remove('dragging');
+                    slots.forEach(function (s) { s.classList.remove('drop-target'); });
+                    dragged = null;
+                });
+
+                slot.addEventListener('dragover', function (event) {
+                    if (dragged && dragged !== slot) {
+                        event.preventDefault();
+                        slot.classList.add('drop-target');
+                    }
+                });
+
+                slot.addEventListener('dragleave', function () {
+                    slot.classList.remove('drop-target');
+                });
+
+                slot.addEventListener('drop', function (event) {
+                    event.preventDefault();
+                    slot.classList.remove('drop-target');
+                    if (dragged) {
+                        swap(dragged, slot, true);
+                    }
+                });
+
+                // Click (or Enter) one slot, then another
+                function pick() {
+                    if (picked === null) {
+                        picked = slot;
+                        slot.classList.add('picked');
+                    } else {
+                        picked.classList.remove('picked');
+                        swap(picked, slot, true);
+                        picked = null;
+                    }
+                }
+
+                slot.addEventListener('click', pick);
+                slot.addEventListener('keydown', function (event) {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        pick();
+                    }
+                });
+            });
+
+            undo.addEventListener('click', function () {
+                const last = history.pop();
+                if (last) {
+                    swap(last[0], last[1], false);
+                    changed = history.length > 0;
+                    undo.disabled = history.length === 0;
+                }
+            });
+
+            editor.addEventListener('submit', function () {
+                changed = false;
+            });
+
+            // Leaving with unsaved changes
+            window.addEventListener('beforeunload', function (event) {
+                if (changed) {
+                    event.preventDefault();
+                    event.returnValue = '';
+                }
+            });
+
+        })();
     </script>
+    <?php endif; ?>
 
 </body>
 

@@ -90,6 +90,7 @@ $reportStmt = $conn->prepare("
         ON r.registrationID = tr.registrationID
     WHERE tr.tournamentID = ?
     AND tr.category_registered = ?
+    AND UPPER(TRIM(tr.endorsement)) = 'ENDORSED'
     ORDER BY
         CASE
             WHEN tr.seed_number IS NULL THEN 999999
