@@ -281,7 +281,7 @@ function reportDate($value, $format = 'd M Y')
         }
 
         @page {
-            size: A4 landscape;
+            size: A4 portrait;
             margin: 10mm;
         }
 
@@ -493,7 +493,7 @@ function reportDate($value, $format = 'd M Y')
 <script src="assets/bracket_download.js?v=<?= filemtime(__DIR__ . '/assets/bracket_download.js') ?>"></script>
 
 <script>
-    // Fit the bracket to an A4 landscape page when printing (about 1045px wide)
+    // Fit the bracket to an A4 portrait page when printing (about 710px wide)
     (function () {
 
         const bracket = document.querySelector('.report-bracket .bracket');
@@ -502,7 +502,7 @@ function reportDate($value, $format = 'd M Y')
             return;
         }
 
-        const zoom = Math.min(1, 1045 / bracket.scrollWidth);
+        const zoom = Math.min(1, 710 / bracket.scrollWidth);
 
         bracket.style.setProperty('--print-zoom', zoom.toFixed(3));
 

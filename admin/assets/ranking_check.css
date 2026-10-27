@@ -63,6 +63,21 @@
     cursor: wait;
 }
 
+.btn.btn-outline {
+    background: #ffffff;
+    color: #993D86;
+    border: 1px solid #993D86;
+}
+
+.btn.btn-outline:hover {
+    background: #f7eef5;
+}
+
+.fix-buttons {
+    display: flex;
+    gap: 10px;
+}
+
 .error-message {
     margin-bottom: 20px;
     padding: 13px 16px;

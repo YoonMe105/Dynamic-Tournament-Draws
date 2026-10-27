@@ -658,7 +658,10 @@ $problemCount = $report ? $counts['wrong'] + $counts['missing'] + $counts['not_f
                             Tick the players to fix and check the new value (filled in from the file; empty clears it).
                             Only <strong>this tournament's saved rankings</strong> change &ndash; player profiles stay as they are.
                         </span>
-                        <button type="submit" class="btn">Save selected rankings</button>
+                        <div class="fix-buttons">
+                            <button type="button" class="btn btn-outline" id="tickAllBtn" onclick="toggleTickAll()">Tick all</button>
+                            <button type="submit" class="btn">Save selected rankings</button>
+                        </div>
                     </div>
 
                 <?php endif; ?>
@@ -745,6 +748,36 @@ $problemCount = $report ? $counts['wrong'] + $counts['missing'] + $counts['not_f
             button.disabled = true;
             button.textContent = 'Checking... (this can take a few seconds)';
         });
+
+        // Tick all / untick all the players that can be fixed
+        function fixBoxes() {
+            return document.querySelectorAll('#fixForm input[type="checkbox"][name^="fix["]');
+        }
+
+        function updateTickAllBtn() {
+            const button = document.getElementById('tickAllBtn');
+            const boxes = Array.from(fixBoxes());
+
+            if (button) {
+                button.textContent = boxes.length > 0 && boxes.every(function (box) { return box.checked; }) ? 'Untick all' : 'Tick all';
+            }
+        }
+
+        function toggleTickAll() {
+            const tick = document.getElementById('tickAllBtn').textContent === 'Tick all';
+
+            fixBoxes().forEach(function (box) {
+                box.checked = tick;
+            });
+
+            updateTickAllBtn();
+        }
+
+        fixBoxes().forEach(function (box) {
+            box.addEventListener('change', updateTickAllBtn);
+        });
+
+        updateTickAllBtn();
 
         function confirmFix() {
 
