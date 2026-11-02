@@ -1248,6 +1248,14 @@ function categoryBadge($registrationID, $category, $wrongCategories)
                     Check Rankings
                 </a>
 
+
+                <a
+                    href="admin_referees.php?id=<?= $tournamentID ?>"
+                    class="btn manage-seeding"
+                >
+                    Referees
+                </a>
+
             </div>
         </div>
 

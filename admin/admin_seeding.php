@@ -5,6 +5,7 @@ require_once 'admin_auth.php';
 // Platform Admins, or the admin who created this tournament
 requireTournamentAccess($_GET['id'] ?? 0);
 require 'admin_tournament_rankings.php';
+require_once 'admin_draw_functions.php';
 
 
 /*
@@ -116,6 +117,29 @@ $seedingOrderSQL = implode(",\n", array_map(function ($column) {
                 ELSE r.$column
             END ASC";
 }, $seedingOrder));
+
+/*
+|--------------------------------------------------------------------------
+| STARTED CATEGORIES
+|--------------------------------------------------------------------------
+| Once a match in a category has a result, its seeds are locked.
+*/
+
+$lockedCategories = startedCategories($conn, $tournamentID);
+
+if (
+    $_SERVER['REQUEST_METHOD'] === 'POST'
+    && in_array(trim($_POST['category'] ?? ''), $lockedCategories, true)
+) {
+    header(
+        "Location: admin_seeding.php?id="
+        . $tournamentID
+        . "&category=" . urlencode(trim($_POST['category']))
+        . "&message=locked"
+    );
+
+    exit;
+}
 
 /*
 |--------------------------------------------------------------------------
@@ -251,6 +275,13 @@ if (
 
     if (isset($_POST['seed']) && is_array($_POST['seed'])) {
 
+        // The form holds every category; players in started categories keep their seed
+        $categoryStmt = $conn->prepare("SELECT registrationID, category_registered FROM tournament_register WHERE tournamentID = ?");
+        $categoryStmt->bind_param("i", $tournamentID);
+        $categoryStmt->execute();
+        $registrationCategories = array_column($categoryStmt->get_result()->fetch_all(MYSQLI_ASSOC), 'category_registered', 'registrationID');
+        $categoryStmt->close();
+
         // Pending (not endorsed) players never get a seed number
         $updateStmt = $conn->prepare("
             UPDATE tournament_register
@@ -263,6 +294,10 @@ if (
         foreach ($_POST['seed'] as $registrationID => $seed) {
 
             $registrationID = intval($registrationID);
+
+            if (in_array($registrationCategories[$registrationID] ?? '', $lockedCategories, true)) {
+                continue;
+            }
 
             /*
             |--------------------------------------------------------------------------
@@ -477,12 +512,17 @@ foreach ($players as $player) {
             <div class="success-message">Seeding changes have been saved successfully.</div>
         <?php endif; ?>
 
+        <!-- LOCKED NOTICE (shown with a started category, see filterCategory) -->
+        <?php foreach ($lockedCategories as $categoryName): ?>
+            <div class="locked-notice" data-category="<?= htmlspecialchars($categoryName) ?>"><i class="fa-solid fa-lock"></i><div><strong>Matches in <?= htmlspecialchars($categoryName) ?> have started</strong>, so its seeding can't be changed any more.</div></div>
+        <?php endforeach; ?>
+
         <!-- ACTION BUTTONS (Download Report / Draw links follow the chosen category, see updateReportLink) -->
         <div class="seeding-actions">
             <form method="POST" action="admin_seeding.php?id=<?= $tournamentID ?>" onsubmit="return confirmSeeding();">
                 <input type="hidden" name="action" value="automatic_seeding">
                 <input type="hidden" name="category" class="selected-category-input" value="<?= htmlspecialchars($firstCategory) ?>">
-                <button type="submit" class="btn">Automatic Seeding</button>
+                <button type="submit" class="btn seeding-change">Automatic Seeding</button>
             </form>
             <a href="#" class="btn" id="downloadReportBtn">Download Report</a>
             <a href="admin_draw.php?id=<?= $tournamentID ?>&category=<?= urlencode($firstCategory) ?>" class="btn" id="drawBtn">Draw</a>
@@ -529,7 +569,7 @@ foreach ($players as $player) {
                                     <?php foreach (['world_ranking', 'national_ranking', 'ajss_ranking'] as $rankingColumn): ?>
                                         <td><?= trim((string) $player[$rankingColumn]) !== '' ? htmlspecialchars($player[$rankingColumn]) : '-' ?></td>
                                     <?php endforeach; ?>
-                                    <td><input type="number" name="seed[<?= (int)$player['registrationID'] ?>]" value="<?= $player['seed_number'] !== null ? (int)$player['seed_number'] : '' ?>" min="1"></td>
+                                    <td><input type="number" name="seed[<?= (int)$player['registrationID'] ?>]" value="<?= $player['seed_number'] !== null ? (int)$player['seed_number'] : '' ?>" min="1" <?= in_array($player['category_registered'], $lockedCategories, true) ? 'disabled' : '' ?>></td>
                                     <td><?php if (strtoupper(trim($player['endorsement'] ?? '')) === 'ENDORSED'): ?><span class="status-endorsed">ENDORSED</span><?php else: ?><span class="status-pending">PENDING</span><?php endif; ?></td>
                                 </tr>
                             <?php endforeach; ?>
@@ -540,7 +580,7 @@ foreach ($players as $player) {
                 </table>
             </div>
 
-            <div class="save-section"><button type="submit" class="btn">Save Seeding</button></div>
+            <div class="save-section"><button type="submit" class="btn seeding-change">Save Seeding</button></div>
         </form>
     </main>
 
@@ -571,8 +611,14 @@ function filterCategory() {
             numberCell.textContent = number++;
         }
     });
-    document.querySelectorAll('.unpaid-notice').forEach(function(notice) {
+    document.querySelectorAll('.unpaid-notice, .locked-notice').forEach(function(notice) {
         notice.style.display = notice.getAttribute('data-category') === selectedCategory ? '' : 'none';
+    });
+    // Started categories: seeding can't be changed
+    const locked = <?= json_encode(array_values($lockedCategories)) ?>.indexOf(selectedCategory) !== -1;
+    document.querySelectorAll('.seeding-change').forEach(function(button) {
+        button.disabled = locked;
+        button.title = locked ? 'Matches in this category have started' : '';
     });
     updateReportLink();
 }

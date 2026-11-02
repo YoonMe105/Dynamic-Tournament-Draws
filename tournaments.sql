@@ -72,6 +72,11 @@ CREATE TABLE `matches` (
   `player2_seed` int(11) DEFAULT NULL,
   `player1_score` int(11) DEFAULT NULL,
   `player2_score` int(11) DEFAULT NULL,
+  `game_scores` varchar(100) DEFAULT NULL,
+  `best_of` tinyint(4) NOT NULL DEFAULT 5,
+  `points_per_game` tinyint(4) NOT NULL DEFAULT 11,
+  `result_status` varchar(20) DEFAULT NULL,
+  `refereeID` int(11) DEFAULT NULL,
   `winnerID` varchar(255) DEFAULT NULL,
   `next_matchID` int(11) DEFAULT NULL,
   `next_match_position` enum('player1','player2') DEFAULT NULL,
@@ -1185,6 +1190,24 @@ ALTER TABLE `tournament_register`
   MODIFY `registrationID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=68;
 
 --
+-- Table structure for table `referees`
+-- (appointed officials of a tournament; matches.refereeID)
+--
+
+CREATE TABLE `referees` (
+  `refereeID` int(11) NOT NULL AUTO_INCREMENT,
+  `tournamentID` int(11) NOT NULL,
+  `referee_name` varchar(150) NOT NULL,
+  `referee_nationality` varchar(60) NOT NULL,
+  `referee_level` varchar(30) NOT NULL,
+  `referee_phone` varchar(30) DEFAULT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT 1,
+  `created_at` datetime DEFAULT current_timestamp(),
+  PRIMARY KEY (`refereeID`),
+  KEY `fk_referee_tournament` (`tournamentID`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
 -- Constraints for dumped tables
 --
 
@@ -1192,7 +1215,14 @@ ALTER TABLE `tournament_register`
 -- Constraints for table `matches`
 --
 ALTER TABLE `matches`
-  ADD CONSTRAINT `fk_match_tournament` FOREIGN KEY (`tournamentID`) REFERENCES `tournament` (`tournamentID`) ON DELETE CASCADE;
+  ADD CONSTRAINT `fk_match_tournament` FOREIGN KEY (`tournamentID`) REFERENCES `tournament` (`tournamentID`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_match_referee` FOREIGN KEY (`refereeID`) REFERENCES `referees` (`refereeID`) ON DELETE SET NULL;
+
+--
+-- Constraints for table `referees`
+--
+ALTER TABLE `referees`
+  ADD CONSTRAINT `fk_referee_tournament` FOREIGN KEY (`tournamentID`) REFERENCES `tournament` (`tournamentID`) ON DELETE CASCADE;
 
 --
 -- Constraints for table `tournament_platform_payments`

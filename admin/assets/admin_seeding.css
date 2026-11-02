@@ -425,3 +425,37 @@ padding: 20px 28px 60px;
 .back-link:hover {
     text-decoration: underline;
 }
+
+/* ==========================================================
+   STARTED CATEGORY (matches have results: seeding is locked)
+========================================================== */
+
+.locked-notice {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 13px 16px;
+    margin-bottom: 16px;
+    background: #f4f4f6;
+    border: 1px solid #dcdce2;
+    border-radius: 6px;
+    color: #444;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.locked-notice i {
+    margin-top: 3px;
+    color: #993D86;
+}
+
+.btn.seeding-change:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.players-table input[type="number"]:disabled {
+    background: #f3f3f3;
+    color: #888;
+    cursor: not-allowed;
+}

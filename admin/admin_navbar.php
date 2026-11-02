@@ -53,7 +53,8 @@
             $tournament_pages = [
                 'admin_index.php', 'admin_tournaments.php', 'admin_create_tournament.php',
                 'admin_view_tournaments.php', 'admin_each_tournament.php', 'admin_seeding.php',
-                'admin_draw.php', 'admin_player_tournament_registration.php', 'admin_ranking_check.php'
+                'admin_draw.php', 'admin_player_tournament_registration.php', 'admin_ranking_check.php',
+                'admin_referees.php'
             ];
             ?>
             <?php if (isPlatformAdmin()): ?>

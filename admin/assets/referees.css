@@ -1,0 +1,194 @@
+/* ==========================================================
+   REFEREES PAGE (admin_referees.php)
+========================================================== */
+
+.page-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+
+/* ==========================================================
+   ADD / EDIT FORM
+========================================================== */
+
+.referee-form {
+    margin-bottom: 24px;
+    padding: 20px;
+    background: #ffffff;
+    border: 1px solid #e5e5e5;
+    border-radius: 8px;
+}
+
+.referee-form h2 {
+    margin: 0 0 16px;
+    color: #993D86;
+    font-size: 17px;
+}
+
+.referee-form h2 i {
+    margin-right: 6px;
+}
+
+.referee-fields {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 14px;
+}
+
+.referee-fields label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    color: #555;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.referee-fields .optional {
+    color: #999;
+    font-weight: 400;
+}
+
+.referee-fields input,
+.referee-fields select {
+    padding: 10px 12px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 400;
+    background: #ffffff;
+}
+
+.referee-fields input:focus,
+.referee-fields select:focus {
+    border-color: #993D86;
+    outline: 2px solid rgba(153, 61, 134, 0.2);
+}
+
+.referee-form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 16px;
+}
+
+.referee-form-actions .btn {
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.referee-error {
+    margin: 0 0 14px;
+    padding: 10px 14px;
+    background: #fdeaea;
+    border: 1px solid #f3c1c1;
+    border-radius: 6px;
+    color: #b42318;
+    font-size: 14px;
+}
+
+
+/* ==========================================================
+   LIST
+========================================================== */
+
+.referee-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.referee-table thead th {
+    padding: 12px 14px;
+    background: #f7eef5;
+    color: #993D86;
+    font-size: 13px;
+    font-weight: 700;
+    text-align: left;
+    white-space: nowrap;
+}
+
+.referee-table tbody td {
+    padding: 12px 14px;
+    border-top: 1px solid #eee;
+    color: #333;
+}
+
+.referee-table .referee-name {
+    font-weight: 600;
+}
+
+.referee-table tr.is-inactive td {
+    color: #999;
+}
+
+.referee-empty {
+    color: #888 !important;
+    text-align: center;
+}
+
+.referee-status {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 20px;
+    background: #eeeeee;
+    color: #777;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.referee-status.active {
+    background: #eaf7ee;
+    color: #1e7b3a;
+}
+
+.referee-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 6px;
+}
+
+.referee-actions form {
+    margin: 0;
+}
+
+.icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    background: #ffffff;
+    color: #555;
+    font-size: 13px;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.icon-btn:hover {
+    border-color: #993D86;
+    color: #993D86;
+}
+
+.icon-btn.danger:hover {
+    border-color: #c0392b;
+    color: #c0392b;
+}
+
+@media (max-width: 700px) {
+    .page-header {
+        flex-direction: column;
+    }
+
+    .referee-form-actions .btn,
+    .referee-form-actions .back-btn {
+        flex: 1;
+        text-align: center;
+    }
+}
