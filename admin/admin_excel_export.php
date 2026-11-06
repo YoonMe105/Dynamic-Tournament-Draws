@@ -12,7 +12,7 @@
 
 function sendExcel($fileName, array $report)
 {
-    $pythonPath = 'C:\\Users\\user\\.pyenv\\pyenv-win\\versions\\3.13.5\\python.exe';
+    $pythonPath = getenv('PYTHON_PATH') ?: 'C:\\Users\\user\\.pyenv\\pyenv-win\\versions\\3.13.5\\python.exe';
     $script = realpath(__DIR__ . '/../rankings/make_excel.py');
 
     if (!is_file($pythonPath) || !$script) {

@@ -24,7 +24,7 @@ requireTournamentAccess($_GET['id'] ?? 0);
 */
 
 // Python with the readers installed (pip install pdfplumber openpyxl xlrd)
-$pythonPath = 'C:\\Users\\user\\.pyenv\\pyenv-win\\versions\\3.13.5\\python.exe';
+$pythonPath = getenv('PYTHON_PATH') ?: 'C:\\Users\\user\\.pyenv\\pyenv-win\\versions\\3.13.5\\python.exe';
 $checkScript = realpath(__DIR__ . '/../rankings/check_rankings.py');
 
 

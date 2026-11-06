@@ -1,0 +1,22 @@
+# Render Blueprint: the PHP app as a Docker web service.
+# The database is Aiven MySQL - fill in its details in the Render dashboard.
+services:
+  - type: web
+    name: tournament
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_NAME
+        value: tournaments
+      - key: DB_SSL_CA
+        sync: false

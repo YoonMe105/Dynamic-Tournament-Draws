@@ -52,7 +52,7 @@ if (!$tournament) {
 $categories = getCategories($conn, $tournamentID);
 $subscriptionUnpaid = platformFeeUnpaid($conn, $tournamentID);
 
-$pythonPath = 'C:\\Users\\user\\.pyenv\\pyenv-win\\versions\\3.13.5\\python.exe';
+$pythonPath = getenv('PYTHON_PATH') ?: 'C:\\Users\\user\\.pyenv\\pyenv-win\\versions\\3.13.5\\python.exe';
 $readScript = realpath(__DIR__ . '/../rankings/read_registration_sheet.py');
 
 $pageUrl = 'admin_register_players_excel.php?id=' . $tournamentID;
